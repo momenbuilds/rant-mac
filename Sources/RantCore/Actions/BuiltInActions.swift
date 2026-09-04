@@ -287,10 +287,29 @@ public enum BuiltInActions {
 /// what will run is on screen next to the button.
 public struct ActionPhrasebook: Sendable {
 
+  /// Reduces an utterance to the form the table is keyed on: politeness stripped
+  /// from the front, filler object words ("that", "the", "it") removed throughout.
+  ///
+  /// The table's keys go through the *same* function when it is built. They did not
+  /// originally, and the result was that every phrase containing an object word —
+  /// "copy that", "note that", "send that" — was unreachable, because the lookup key
+  /// had those words removed and the table key still had them. A test caught it, but
+  /// only because it used one of the affected phrases.
+  static func canonical(_ utterance: String) -> String {
+    var tokens = utterance.split(whereSeparator: \.isWhitespace)
+      .map(String.init)
+      .map(CommandParser.normalise)
+    while let first = tokens.first, CommandParser.leadingWords.contains(first), tokens.count > 1 {
+      tokens.removeFirst()
+    }
+    return tokens.filter { !CommandParser.objectWords.contains($0) && !$0.isEmpty }
+      .joined(separator: " ")
+  }
+
   static let phrases: [String: String] = {
     var table: [String: String] = [:]
     func add(_ keys: [String], _ id: String) {
-      for key in keys { table[key] = id }
+      for key in keys { table[canonical(key)] = id }
     }
     add(
       [
@@ -308,17 +327,9 @@ public struct ActionPhrasebook: Sendable {
 
   /// The action the user named, or nil. Nil is the common answer.
   public func actionID(for utterance: String) -> String? {
-    let words = utterance.split(whereSeparator: \.isWhitespace)
-      .map(String.init)
-      .map(CommandParser.normalise)
-    guard !words.isEmpty else { return nil }
-    var tokens = words
-    while let first = tokens.first, CommandParser.leadingWords.contains(first), tokens.count > 1 {
-      tokens.removeFirst()
-    }
-    let canonical = tokens.filter { !CommandParser.objectWords.contains($0) && !$0.isEmpty }
-      .joined(separator: " ")
-    return Self.phrases[canonical]
+    let key = Self.canonical(utterance)
+    guard !key.isEmpty else { return nil }
+    return Self.phrases[key]
   }
 
   /// An intent from the user's words and the finished text.
