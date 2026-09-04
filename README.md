@@ -61,6 +61,9 @@ locally instead, which needs none of that.
 certificate exists.
 </details>
 
+> **Setting up:** macOS needs three approvals it will not let an app grant itself.
+> [`docs/SETUP.md`](docs/SETUP.md) is the two-minute version.
+
 ### First run
 
 1. **Microphone** and **Accessibility** — Rant explains what each is for before asking,
