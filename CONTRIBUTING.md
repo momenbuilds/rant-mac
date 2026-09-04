@@ -56,6 +56,14 @@ Work is tracked in `TASKS.md` with stable `RANT-NNN` ids.
 
 `bash scripts/status.sh` prints where things stand.
 
+## Permissions, and why they keep disappearing
+
+If Accessibility seems to switch itself off after every build, you are on ad-hoc
+signing. macOS binds a grant to the signature, and an ad-hoc signature is a hash of
+the binary — so every build orphans it. `scripts/dev-build.sh` uses a real
+certificate when the machine has one; `scripts/make-signing-identity.sh` makes a local
+one when it does not. `docs/SETUP.md` has the detail.
+
 ## Testing things that touch the OS
 
 Global hotkeys, Accessibility and text injection are keyed by macOS to the app
