@@ -122,8 +122,11 @@ check_ui() {
   bash scripts/ui-test.sh | tail -3
   return "${PIPESTATUS[0]}"
 }
-if [ "${SKIP_UI_TESTS:-0}" = "1" ]; then
-  skip_check "XCUITest suite" "SKIP_UI_TESTS=1"
+# Opt-in, not default. XCUITest drives the real cursor and takes over the machine for
+# two minutes, so running it on every check makes the machine unusable while you work.
+# CI sets RUN_UI_TESTS=1; a developer runs `bash scripts/ui-test.sh` when they mean to.
+if [ "${RUN_UI_TESTS:-0}" != "1" ]; then
+  skip_check "XCUITest suite" "opt-in — run: RUN_UI_TESTS=1 bash scripts/check.sh"
 elif command -v xcodebuild >/dev/null 2>&1; then
   run "XCUITest suite" check_ui
 else

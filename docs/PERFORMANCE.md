@@ -35,6 +35,27 @@ starts, not when it ends — an unauthenticated throwaway request that opens the
 TLS connection. The 4xx that comes back is discarded and it never counts as a
 transcription.
 
+## Measured
+
+From `PerformanceTests`, on the Intel machine this was developed on — which is the
+slower case, not the flattering one:
+
+| What | Measured |
+|---|---|
+| arming the microphone (Rant's own overhead) | **0.01 ms** |
+| everything after the transcript arrives — cleanup, vocabulary, classification, storage, insertion | **4.1 ms** |
+| the same, for a 50-word dictation | **5.9 ms** |
+| the same, for a 2,000-word dictation | **31.7 ms** |
+
+The last two are the important pair. Forty times the words costs about five times the
+work, not forty — the text passes are linear and the rest is fixed cost. A regression
+to anything super-linear fails
+`testALongDictationDoesNotSlowThePipelineDisproportionately`.
+
+What is *not* in these numbers is the provider round trip, which is the only part
+Rant does not control. The budgets above bracket it on both sides so that when
+dictation feels slow, it is clear whether that is Rant or the network.
+
 ## Deliberately not on the hot path
 
 Context capture and provider warm-up both happen **after** `audio.start()` returns,

@@ -14,6 +14,8 @@ let go, and clean text lands at your cursor in whatever app you were already usi
 
 [Install](#install) · [Why](#why-another-dictation-app) · [Privacy](#privacy-in-one-paragraph) · [Docs](#documentation)
 
+<img src="docs/assets/app.png" width="820" alt="The Rant window: sidebar, hotkey, statistics and history">
+
 </div>
 
 ---

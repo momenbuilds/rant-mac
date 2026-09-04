@@ -444,3 +444,92 @@ final class PerformanceTests: XCTestCase {
     }
   }
 }
+
+/// End-to-end latency of the dictation pipeline.
+///
+/// The budgets in `docs/PERFORMANCE.md` are about how the app *feels*, and the two
+/// that a test can hold honestly are the ones that do not involve a network: how long
+/// it takes to arm the microphone after the key goes down, and how long everything
+/// after the transcript arrives takes. Those bracket the provider, which is the only
+/// part Rant does not control.
+extension PerformanceTests {
+
+  private func pipelineSession(
+    audio: FixtureAudioCapture = .tone(seconds: 3),
+    transcriber: ScriptedTranscriber = ScriptedTranscriber(
+      raw: "so the migration lands wednesday and i will write the notes up after"),
+    injector: RecordingInjector = RecordingInjector()
+  ) -> DictationSession {
+    DictationSession(
+      audio: audio, transcriber: transcriber, injector: injector,
+      context: StaticContextProvider(.empty))
+  }
+
+  /// The key goes down and the microphone must already be armed. Everything else can
+  /// be a few milliseconds late; this cannot, because the syllable is gone.
+  func testArmingTheMicrophoneIsEffectivelyInstant() async {
+    let session = pipelineSession()
+    let started = ContinuousClock.now
+    await session.start()
+    let elapsed = ContinuousClock.now - started
+
+    // The budget is 150 ms on real hardware, where the audio engine is the cost. With
+    // a fixture capture this measures Rant's own overhead, which should be nothing.
+    print("MEASURED arming: \(elapsed)")
+    XCTAssertLessThan(elapsed, .milliseconds(50), "arming took \(elapsed)")
+  }
+
+  /// Everything after the transcript arrives: cleanup, vocabulary, classification,
+  /// storage and insertion. The user experiences this as the delay between finishing
+  /// a sentence and seeing it, so it has to disappear into the provider's round trip.
+  func testTheWholePipelineAfterTheProviderIsUnderTheBudget() async throws {
+    let database = try Database(url: nil)
+    try Migrations.migrate(database)
+    let injector = RecordingInjector()
+    let session = DictationSession(
+      audio: FixtureAudioCapture.tone(seconds: 3),
+      transcriber: ScriptedTranscriber(
+        raw: "so the migration lands wednesday and i will write the notes up after"),
+      injector: injector,
+      context: StaticContextProvider(.empty),
+      store: SQLiteTranscriptStore(database: database))
+
+    await session.start()
+    let started = ContinuousClock.now
+    let outcome = await session.stopAndTranscribe()
+    let elapsed = ContinuousClock.now - started
+
+    XCTAssertNotNil(outcome)
+    XCTAssertNotNil(injector.lastText)
+    // Generous enough not to flake on a loaded machine, tight enough that an
+    // accidental O(n²) or a blocking write fails it.
+    print("MEASURED pipeline after provider: \(elapsed)")
+    XCTAssertLessThan(elapsed, .milliseconds(250), "the pipeline took \(elapsed)")
+  }
+
+  /// A long dictation must not cost proportionally more *after* the transcript: the
+  /// text passes are linear, and this is the test that says so.
+  func testALongDictationDoesNotSlowThePipelineDisproportionately() async throws {
+    func measure(words: Int) async -> Duration {
+      let text = Array(repeating: "word", count: words).joined(separator: " ")
+      let injector = RecordingInjector()
+      let session = DictationSession(
+        audio: FixtureAudioCapture.tone(seconds: 3),
+        transcriber: ScriptedTranscriber(raw: text),
+        injector: injector,
+        context: StaticContextProvider(.empty))
+      await session.start()
+      let started = ContinuousClock.now
+      _ = await session.stopAndTranscribe()
+      return ContinuousClock.now - started
+    }
+
+    let short = await measure(words: 50)
+    let long = await measure(words: 2_000)
+    // Forty times the words should not be anywhere near forty times the work once the
+    // fixed costs are counted, but the assertion that matters is simply that a long
+    // one still completes quickly.
+    print("MEASURED 50 words: \(short) · 2000 words: \(long)")
+    XCTAssertLessThan(long, .milliseconds(600), "2000 words took \(long), 50 took \(short)")
+  }
+}

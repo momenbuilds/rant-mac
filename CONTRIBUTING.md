@@ -13,6 +13,14 @@ bash scripts/dev-build.sh     # builds and installs "Rant Dev.app", then launche
 cannot run in your environment it prints `SKIP` — a skip is reported as a skip and
 never counted as a pass.
 
+The XCUITest suite is **opt-in**, because it drives the real cursor and takes the
+machine over for a couple of minutes:
+
+```bash
+bash scripts/ui-test.sh              # just the UI tests
+RUN_UI_TESTS=1 bash scripts/check.sh # everything, including them
+```
+
 ## Ground rules
 
 **Licence.** Rant is MIT. By contributing you agree your contribution is MIT.

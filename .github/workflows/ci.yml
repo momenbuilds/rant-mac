@@ -32,7 +32,8 @@ jobs:
       # The same script contributors run locally. If it passes here and fails there,
       # that is a bug in the script, not a difference to work around.
       - name: Run the full check
-        run: bash scripts/check.sh
+        # CI has the machine to itself, so it runs the UI tests too.
+        run: RUN_UI_TESTS=1 bash scripts/check.sh
 
   secrets:
     name: no secrets in the diff
