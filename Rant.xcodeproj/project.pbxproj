@@ -15,6 +15,7 @@
 		2072A7CEECA764972482479A /* StylesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969AEB044B530E6D7A9D7AAB /* StylesView.swift */; };
 		20E8D6BAE987C56241101CBA /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BFCA8100153B98BC057D6B3 /* HistoryView.swift */; };
 		23699843B8661C94990D74C3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208110D8C3C2F5EEA4BF165F /* SettingsView.swift */; };
+		49550EB710BACACAFDA30A89 /* PageTourTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE89F48313D3963A85B3C19 /* PageTourTests.swift */; };
 		526CFD4D90896934162F4F97 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A9A10E7172019C35A6C864 /* Preferences.swift */; };
 		57113839F403C1A8FB2312D5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D7258A233E69A734D0B12C9 /* Theme.swift */; };
 		59B48B6BFB65F91DBCCBE64E /* RantApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EACEA5AA69091FBBEAF12DC /* RantApp.swift */; };
@@ -23,6 +24,7 @@
 		A22EFA97DFF54ABA1E7706EC /* RecorderOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE3A083F0C8AB11A4EB5D54C /* RecorderOverlay.swift */; };
 		AC10670C7ABAD3149B03365A /* OverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C9A013536872A31BA50407 /* OverlayController.swift */; };
 		D21303E13218D64F499077C4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6215D4531E1063A40D8A2D10 /* OnboardingView.swift */; };
+		E283586579D98B548A6B4EBF /* TransformsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF41DDD4B08F7F7322244223 /* TransformsView.swift */; };
 		E4596EC8C3742F5E142BE208 /* HierarchyDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07CCE46290E3DE647B6B82F2 /* HierarchyDiagnostic.swift */; };
 		E4EAB37F7A8A03B828A929CF /* RantCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9D4E1E13B0E11D5F2A81B7B4 /* RantCore */; };
 		E9195F34C4CD00565BC9A6D2 /* NotetakerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E0C2EB81A082A153DE2EFAE /* NotetakerView.swift */; };
@@ -62,8 +64,10 @@
 		BCB5F2A65986604A1C209840 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
 		BD389C3FFFC4CF6441449AAC /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
 		C0A66A9791CE59F1F8E41115 /* Rant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rant.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CF41DDD4B08F7F7322244223 /* TransformsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformsView.swift; sourceTree = "<group>"; };
 		D2FC28547A789BB5867734DB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D86DA3ECF09A2156921FBF81 /* rant-mac */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "rant-mac"; path = .; sourceTree = SOURCE_ROOT; };
+		DEE89F48313D3963A85B3C19 /* PageTourTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageTourTests.swift; sourceTree = "<group>"; };
 		E33BE18405DF3FB5FBBD4F8A /* Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Permissions.swift; sourceTree = "<group>"; };
 		E987D1EC752AF8C50C11B9C9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		EE3A083F0C8AB11A4EB5D54C /* RecorderOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderOverlay.swift; sourceTree = "<group>"; };
@@ -103,6 +107,7 @@
 			children = (
 				07CCE46290E3DE647B6B82F2 /* HierarchyDiagnostic.swift */,
 				A68446C6A9C9C91BA638C19D /* OnboardingUITests.swift */,
+				DEE89F48313D3963A85B3C19 /* PageTourTests.swift */,
 			);
 			path = RantUITests;
 			sourceTree = "<group>";
@@ -201,6 +206,7 @@
 				528D7E42C7CA060179D16BFB /* Recorder */,
 				E12AF6E9DB333AE54F130109 /* Scratchpad */,
 				DE86C9D92826507D1169DFB7 /* Settings */,
+				EB08F27EB5FCF494B1E672DE /* Transforms */,
 				D2FC28547A789BB5867734DB /* Info.plist */,
 				A6354DBAB43B57FC9FDEDC11 /* Rant.entitlements */,
 			);
@@ -248,6 +254,14 @@
 				4A6A68FBF9A2C346F686B20A /* ScratchpadView.swift */,
 			);
 			path = Scratchpad;
+			sourceTree = "<group>";
+		};
+		EB08F27EB5FCF494B1E672DE /* Transforms */ = {
+			isa = PBXGroup;
+			children = (
+				CF41DDD4B08F7F7322244223 /* TransformsView.swift */,
+			);
+			path = Transforms;
 			sourceTree = "<group>";
 		};
 		EDC0F36C645C7CD55B6A2192 /* Migrate */ = {
@@ -365,6 +379,7 @@
 				23699843B8661C94990D74C3 /* SettingsView.swift in Sources */,
 				2072A7CEECA764972482479A /* StylesView.swift in Sources */,
 				57113839F403C1A8FB2312D5 /* Theme.swift in Sources */,
+				E283586579D98B548A6B4EBF /* TransformsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -374,6 +389,7 @@
 			files = (
 				E4596EC8C3742F5E142BE208 /* HierarchyDiagnostic.swift in Sources */,
 				003762CF3C377BF32E6FF348 /* OnboardingUITests.swift in Sources */,
+				49550EB710BACACAFDA30A89 /* PageTourTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

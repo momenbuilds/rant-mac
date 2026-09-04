@@ -105,7 +105,9 @@ public struct KeychainSecretStore: SecretStoring {
           throw SecretStoreError.malformedData
         }
         // Note what was read, never what was read *out*.
-        return string.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !dataProtection { migrateFromFileKeychain(value, for: key) }
+        return value
       case errSecItemNotFound:
         continue
       default:
@@ -114,6 +116,28 @@ public struct KeychainSecretStore: SecretStoring {
       }
     }
     return nil
+  }
+
+  /// Moves a secret found in the old file keychain into the data-protection keychain,
+  /// then removes the original.
+  ///
+  /// Without this, a key saved by an earlier build stays where it is and the user is
+  /// asked for their login password on every single rebuild, for ever — the fix for
+  /// the prompt would only apply to people who happened to re-enter their key. Doing
+  /// it on the first successful read means the prompt happens exactly once more and
+  /// then never again.
+  ///
+  /// Best-effort on purpose: if the move fails the original is left alone, so the
+  /// worst case is the old behaviour rather than a lost key.
+  private func migrateFromFileKeychain(_ value: String, for key: SecretKey) {
+    var insert = baseQuery(key, dataProtection: true)
+    insert[kSecValueData as String] = Data(value.utf8)
+    let added = SecItemAdd(insert as CFDictionary, nil)
+    guard added == errSecSuccess || added == errSecDuplicateItem else { return }
+    let removed = SecItemDelete(baseQuery(key, dataProtection: false) as CFDictionary)
+    if removed == errSecSuccess {
+      log.info("moved \(key.rawValue) to the data-protection keychain")
+    }
   }
 
   /// Writes to the data-protection keychain, falling back to the file keychain if
@@ -210,5 +234,55 @@ public enum APIKeyValidator {
     if key.contains(where: \.isWhitespace) { return .containsWhitespace }
     if key.count < 20 { return .tooShort }
     return .looksValid
+  }
+}
+
+/// Remembers what it read, so the Keychain is asked once per secret per launch.
+///
+/// This exists because of a specific, miserable failure mode. The older file keychain
+/// guards an item with an access list naming the exact binaries allowed to read it,
+/// and an ad-hoc-signed app gets a new signature on every build — so macOS raises a
+/// system password dialog. That dialog is *modal to the application*, which means it
+/// can appear before the app's own window and block it entirely; the app looks hung
+/// rather than merely inquisitive.
+///
+/// Reading on every dictation, and from the sidebar on every redraw, turned one
+/// prompt into a stream of them. Caching does not fix the underlying keychain choice
+/// — `KeychainSecretStore` moves secrets to the data-protection keychain for that —
+/// but it bounds the damage to a single prompt while an old secret is being migrated,
+/// and it removes a synchronous Keychain call from the dictation hot path.
+///
+/// The cache is invalidated by any write or delete through this store, so a key
+/// changed in Settings applies to the very next dictation.
+public final class CachingSecretStore: SecretStoring, @unchecked Sendable {
+  private let underlying: any SecretStoring
+  private var cache: [SecretKey: String?] = [:]
+  private let lock = NSLock()
+
+  public init(_ underlying: any SecretStoring) {
+    self.underlying = underlying
+  }
+
+  public func read(_ key: SecretKey) throws -> String? {
+    if let cached = lock.withLock({ cache[key] }) { return cached }
+    let value = try underlying.read(key)
+    lock.withLock { cache[key] = value }
+    return value
+  }
+
+  public func write(_ value: String, for key: SecretKey) throws {
+    try underlying.write(value, for: key)
+    lock.withLock { cache[key] = nil }
+  }
+
+  public func delete(_ key: SecretKey) throws {
+    try underlying.delete(key)
+    lock.withLock { cache[key] = nil }
+  }
+
+  /// Forgets everything, so the next read asks the Keychain again. For the case where
+  /// the user changed something outside the app.
+  public func invalidate() {
+    lock.withLock { cache.removeAll() }
   }
 }

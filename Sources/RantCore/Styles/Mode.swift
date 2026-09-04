@@ -8,7 +8,10 @@ import Foundation
 /// genuinely different machinery, and making the user reconfigure Settings between
 /// them is not a product.
 public struct Mode: Equatable, Sendable, Identifiable, Codable {
-  public var id: Int64?
+  /// Same reasoning as `WritingStyle`: a built-in has no row id, so identity has to be
+  /// the name or a list draws one mode repeatedly.
+  public var id: String { name }
+  public var rowID: Int64?
   public var name: String
   public var builtIn: Bool
   public var createdAt: Date
@@ -68,13 +71,13 @@ public struct Mode: Equatable, Sendable, Identifiable, Codable {
   }
 
   public init(
-    id: Int64? = nil,
+    rowID: Int64? = nil,
     name: String,
     builtIn: Bool = false,
     createdAt: Date = Date(),
     configuration: Configuration
   ) {
-    self.id = id
+    self.rowID = rowID
     self.name = name
     self.builtIn = builtIn
     self.createdAt = createdAt

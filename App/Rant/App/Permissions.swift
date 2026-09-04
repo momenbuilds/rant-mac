@@ -24,12 +24,62 @@ final class Permissions: ObservableObject {
   @Published private(set) var accessibility: Status = .notDetermined
   @Published private(set) var screenRecording: Status = .notDetermined
 
+  /// Fires when a permission changes from not-granted to granted, so the app can act
+  /// on it immediately rather than waiting for a relaunch.
+  var onGranted: ((Status, Status, Status) -> Void)?
+
+  private var pollTimer: Timer?
+
   init() { refresh() }
 
-  func refresh() {
+  /// No `deinit` cleanup: the timer holds only a weak reference to this object, so it
+  /// cannot keep it alive, and a main-actor property cannot be touched from a
+  /// nonisolated `deinit` under strict concurrency. `stopWatching()` is there for a
+  /// caller that wants to be explicit.
+
+  @discardableResult
+  func refresh() -> Bool {
+    let previousAccessibility = accessibility
     microphone = Self.microphoneStatus()
     accessibility = AXIsProcessTrusted() ? .granted : .notDetermined
     screenRecording = CGPreflightScreenCaptureAccess() ? .granted : .notDetermined
+
+    let becameGranted = previousAccessibility != .granted && accessibility == .granted
+    if becameGranted {
+      onGranted?(microphone, accessibility, screenRecording)
+    }
+    return becameGranted
+  }
+
+  /// Watches for a permission being granted while the app is running.
+  ///
+  /// Granting Accessibility happens in System Settings, in another process, and macOS
+  /// sends no notification about it. Checking once at launch means the user grants the
+  /// permission, comes back, and the app still insists it is not ready — which reads
+  /// as the app being broken rather than as the app not having looked again.
+  ///
+  /// So it polls. `AXIsProcessTrusted` is a cheap local call, and the poll is slow
+  /// enough to be free and fast enough that returning to the window feels immediate.
+  /// It also refreshes whenever the app is reactivated, which is the moment it
+  /// actually matters — you grant the permission, then switch back.
+  func startWatching() {
+    pollTimer?.invalidate()
+    let timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+      Task { @MainActor [weak self] in self?.refresh() }
+    }
+    RunLoop.main.add(timer, forMode: .common)
+    pollTimer = timer
+
+    NotificationCenter.default.addObserver(
+      forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor [weak self] in self?.refresh() }
+    }
+  }
+
+  func stopWatching() {
+    pollTimer?.invalidate()
+    pollTimer = nil
   }
 
   private static func microphoneStatus() -> Status {
@@ -80,6 +130,17 @@ final class Permissions: ObservableObject {
   func open(_ pane: Pane) {
     NSWorkspace.shared.open(pane.url)
   }
+
+  /// True when we have been running long enough that a user who was going to grant
+  /// Accessibility has probably tried — at which point "still not granted" is more
+  /// likely a stale TCC entry than someone who has not got round to it.
+  ///
+  /// It is a heuristic and it only changes what advice is offered, never behaviour.
+  var looksStale: Bool {
+    Date().timeIntervalSince(startedAt) > 20
+  }
+
+  private let startedAt = Date()
 
   /// Everything dictation needs. Screen recording is deliberately excluded — it is
   /// only for the notetaker, and a user who never records meetings should never be

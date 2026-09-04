@@ -18,7 +18,8 @@ struct RantApp: App {
           model.cancelDictation()
         }
     }
-    .defaultSize(width: 1_040, height: 680)
+    .defaultSize(width: 1_100, height: 720)
+    .windowStyle(.hiddenTitleBar)
     .commands {
       CommandGroup(replacing: .newItem) {}
       CommandMenu("Dictation") {

@@ -7,7 +7,14 @@ import Foundation
 /// happening at the provider or locally, and it means a user can read exactly what
 /// their style does rather than trusting a label.
 public struct WritingStyle: Equatable, Sendable, Identifiable, Codable {
-  public var id: Int64?
+  /// Identity is the name, not the database row id.
+  ///
+  /// A built-in style has no row until it is customised, so `rowID` is nil for all of
+  /// them — and a list keyed on that treats every built-in as the same item and draws
+  /// the first one ten times. The name is unique (asserted in `StyleTests`) and is
+  /// what a user actually identifies a style by.
+  public var id: String { name }
+  public var rowID: Int64?
   public var name: String
   public var instructions: String
   /// Which surface this style is the default for, if any.
@@ -16,14 +23,14 @@ public struct WritingStyle: Equatable, Sendable, Identifiable, Codable {
   public var createdAt: Date
 
   public init(
-    id: Int64? = nil,
+    rowID: Int64? = nil,
     name: String,
     instructions: String,
     category: UsageCategory? = nil,
     builtIn: Bool = false,
     createdAt: Date = Date()
   ) {
-    self.id = id
+    self.rowID = rowID
     self.name = name
     self.instructions = instructions
     self.category = category

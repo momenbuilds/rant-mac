@@ -19,8 +19,8 @@ struct MigrateView: View {
   @State private var errorMessage: String?
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: Theme.Spacing.large) {
+    VStack(alignment: .leading, spacing: Theme.Spacing.large) {
+      Group {
         header
         chooseStep
         if let preview { previewStep(preview) }
@@ -28,11 +28,8 @@ struct MigrateView: View {
         if !history.isEmpty { historySection }
         promises
       }
-      .padding(Theme.Spacing.large)
-      .frame(maxWidth: 780, alignment: .leading)
     }
-    .frame(maxWidth: .infinity)
-    .navigationTitle("Migrate")
+    .page(maxWidth: 820)
     .onAppear(perform: reloadHistory)
     .alert("Could not read that", isPresented: .constant(errorMessage != nil)) {
       Button("OK") { errorMessage = nil }
@@ -40,20 +37,19 @@ struct MigrateView: View {
   }
 
   private var header: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text("Bring your voice history home").font(.largeTitle.weight(.semibold))
-      Text("Import from Wispr Flow, VoiceInk, Superwhisper, Otter, or any transcript file you have. Your originals are opened read-only and never changed.")
-        .foregroundStyle(.secondary)
-    }
+    PageTitle(
+      title: "Bring your voice history home",
+      subtitle: "Import from Wispr Flow, VoiceInk, Superwhisper, Otter, or any transcript file you have. Your originals are opened read-only and never changed.")
   }
 
   private var chooseStep: some View {
     SectionCard(title: "1 · Choose what to import") {
       VStack(alignment: .leading, spacing: Theme.Spacing.small) {
-        HStack {
-          Button("Choose a file…") { choose(directory: false) }
-          Button("Choose a folder…") { choose(directory: true) }
+        HStack(spacing: Theme.Spacing.tight) {
+          Button("Choose a file…") { choose(directory: false) }.buttonStyle(.clay)
+          Button("Choose a folder…") { choose(directory: true) }.buttonStyle(.quiet)
           if busy { ProgressView().controlSize(.small) }
+          Spacer()
         }
         if let source {
           Label(source.lastPathComponent, systemImage: "doc")
@@ -86,13 +82,14 @@ struct MigrateView: View {
           Label(
             "\(preview.unsupported) unsupported, \(preview.malformed) unreadable — these will be listed in the report rather than guessed at",
             systemImage: "info.circle")
-            .font(.caption).foregroundStyle(Theme.accent)
+            .font(.caption).foregroundStyle(Theme.clay)
         }
         HStack {
           Button("Import \(preview.total) items") { run(dryRun: false) }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.clay)
             .disabled(busy || preview.total == 0)
           Button("Dry run again") { run(dryRun: true) }
+            .buttonStyle(.quiet)
             .disabled(busy)
         }
       }
@@ -158,9 +155,13 @@ struct MigrateView: View {
 
   private func promise(_ text: String) -> some View {
     HStack(alignment: .top, spacing: 8) {
-      Image(systemName: "xmark.shield").font(.caption).foregroundStyle(Theme.success)
+      Image(systemName: "xmark.circle.fill")
+        .font(.system(size: 11)).foregroundStyle(Theme.moss)
+        .padding(.top, 2)
         .accessibilityHidden(true)
-      Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
+      Text(text)
+        .font(.system(size: 12.5)).foregroundStyle(Theme.ink)
+        .fixedSize(horizontal: false, vertical: true)
     }
   }
 

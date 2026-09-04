@@ -6,9 +6,9 @@ import XCTest
 final class HierarchyDiagnostic: XCTestCase {
   func testDumpOnboardingHierarchy() {
     let app = XCUIApplication()
-    app.launchArguments += ["-rant-ui-testing", "YES"]
+    app.launchArguments += ["-rant-ui-testing", "YES", "-rant-ui-skip-onboarding", "YES"]
     app.launch()
-    _ = app.staticTexts["talk messy. write clean."].waitForExistence(timeout: 10)
+    _ = app.staticTexts["Home"].waitForExistence(timeout: 10)
     print("=== RANT HIERARCHY BEGIN ===")
     print(app.debugDescription)
     print("=== RANT HIERARCHY END ===")

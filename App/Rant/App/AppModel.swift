@@ -43,11 +43,15 @@ final class AppModel: ObservableObject {
   init(
     preferences: Preferences = Preferences(),
     permissions: Permissions = Permissions(),
-    secrets: any SecretStoring = KeychainSecretStore()
+    secrets: (any SecretStoring)? = nil
   ) {
     self.preferences = preferences
     self.permissions = permissions
-    self.secrets = secrets
+    // A UI test must never touch the real Keychain. Reading it pops a system password
+    // dialog, which blocks the app's own window from appearing — so the test finds no
+    // window and fails for a reason that has nothing to do with what it was testing.
+    self.secrets =
+      secrets ?? CachingSecretStore(Self.isUITesting ? InMemorySecretStore() : KeychainSecretStore())
   }
 
   // MARK: - Lifecycle
@@ -58,6 +62,19 @@ final class AppModel: ObservableObject {
     installHotkeys()
     refreshHistory()
     startMeterUpdates()
+
+    // The event tap cannot be installed without Accessibility, and Accessibility is
+    // granted in another process with no notification. Watching for it means the
+    // moment the user comes back from System Settings, the tap installs itself — no
+    // relaunch, no "why is it still complaining".
+    permissions.onGranted = { [weak self] _, _, _ in
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        self.log.info("accessibility granted; installing the event tap")
+        self.installHotkeys()
+      }
+    }
+    permissions.startWatching()
   }
 
   /// True when XCUITest launched us. A UI test must never read or write the
@@ -272,6 +289,23 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Writes a Rant Archive — the portable copy of everything, in the same format the
+  /// Migration Center reads back. Leaving Rant is a supported operation, so it gets a
+  /// menu item rather than a documentation page.
+  func exportArchive() {
+    guard let database else { return }
+    let panel = NSSavePanel()
+    panel.nameFieldStringValue = "Rant Archive \(Date().formatted(.iso8601.year().month().day())).zip"
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    do {
+      let manifest = try RantArchive(database: database).exportZip(to: url)
+      lastError = nil
+      log.info("exported archive with \(manifest.counts.transcripts) transcripts")
+    } catch {
+      lastError = "Could not export: \(error.localizedDescription)"
+    }
+  }
+
   func importJSON<T: Decodable>(_ type: T.Type, completion: (T) -> Void) {
     let panel = NSOpenPanel()
     panel.allowedContentTypes = [.json]
@@ -347,12 +381,24 @@ final class AppModel: ObservableObject {
     try? Data(text.utf8).write(to: url)
   }
 
+  /// Whether a key is stored, cached after the first look.
+  ///
+  /// This is read by the sidebar footer, which redraws constantly — and every read of
+  /// the file keychain can raise a system password prompt. Asking once and remembering
+  /// the answer is the difference between one prompt and one per redraw.
+  private var cachedHasAPIKey: Bool?
+
   var hasAPIKey: Bool {
-    ((try? secrets.read(.assemblyAI)) ?? nil)?.isEmpty == false
+    if let cachedHasAPIKey { return cachedHasAPIKey }
+    let present = ((try? secrets.read(.assemblyAI)) ?? nil)?.isEmpty == false
+    cachedHasAPIKey = present
+    return present
   }
 
   func saveAPIKey(_ key: String) throws {
     try secrets.write(key, for: .assemblyAI)
+    cachedHasAPIKey = nil
+    objectWillChange.send()
     buildSession()
   }
 

@@ -1,147 +1,183 @@
-import Charts
 import RantCore
 import SwiftUI
 
-/// What Rant has actually done for you, computed entirely from local aggregates.
+/// What Rant has done for you, computed entirely from local aggregates.
 ///
 /// Nothing here is sent anywhere, and nothing here needed to be: every number comes
-/// from `usage_daily` and `app_usage`, which are written inside the same transaction
-/// as the dictation that produced them.
+/// from tables written inside the same transaction as the dictation that produced them.
 struct InsightsView: View {
   @EnvironmentObject private var model: AppModel
   @State private var summary: InsightsSummary?
   @State private var daily: [DailyUsage] = []
   @State private var categories: [CategoryUsage] = []
-  @State private var latency: [LatencyProfile] = []
   @State private var range = 30
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: Theme.Spacing.large) {
-        if let summary, summary.totalDictations > 0 {
-          headline(summary)
-          streaks(summary)
+    VStack(alignment: .leading, spacing: Theme.Spacing.large) {
+      PageTitle(
+        title: "Insights",
+        subtitle: "Worked out on your Mac, from your own history.",
+        accessory: AnyView(rangePicker))
+
+      if let summary, summary.totalDictations > 0 {
+        headline(summary)
+        HStack(alignment: .top, spacing: Theme.Spacing.medium) {
           wordsChart
-          categoryChart
-          if model.preferences.developerMode { latencyTable }
-        } else {
-          ContentUnavailableView {
-            Label("Nothing to show yet", systemImage: "chart.bar")
-          } description: {
-            Text("Dictate something and this fills in. Everything here is computed on your Mac from your own history — none of it is sent anywhere, because there is nowhere to send it.")
-          }
+          categoryBreakdown
+        }
+        streakGrid(summary)
+      } else {
+        Card {
+          EmptyState(
+            icon: "chart.bar",
+            title: "Nothing to show yet",
+            message: "Dictate something and this fills in. None of it is sent anywhere, because there is nowhere to send it.")
         }
       }
-      .padding(Theme.Spacing.large)
-      .frame(maxWidth: 860, alignment: .leading)
     }
-    .frame(maxWidth: .infinity)
-    .navigationTitle("Insights")
-    .toolbar {
-      ToolbarItem {
-        Picker("Range", selection: $range) {
-          Text("7 days").tag(7)
-          Text("30 days").tag(30)
-          Text("90 days").tag(90)
-        }
-        .pickerStyle(.segmented)
-      }
-    }
+    .page(maxWidth: 1_000)
     .onAppear(perform: reload)
     .onChange(of: range) { _, _ in reload() }
   }
 
+  private var rangePicker: some View {
+    HStack(spacing: 2) {
+      ForEach([7, 30, 90], id: \.self) { days in
+        Button {
+          range = days
+        } label: {
+          Text("\(days)d")
+            .font(.system(size: 11.5, weight: range == days ? .semibold : .regular))
+            .foregroundStyle(range == days ? Theme.ink : Theme.inkMuted)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+              range == days ? Theme.surface : .clear,
+              in: RoundedRectangle(cornerRadius: Theme.Radius.chip))
+        }
+        .buttonStyle(.plain)
+      }
+    }
+    .padding(2)
+    .background(Theme.sunken, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+  }
+
   private func headline(_ summary: InsightsSummary) -> some View {
-    HStack(spacing: Theme.Spacing.medium) {
-      stat("Words dictated", summary.totalWords.formatted(), "text.word.spacing")
-      stat("Average pace", "\(Int(summary.averageWordsPerMinute)) wpm", "speedometer")
-      stat("Time saved", formatted(summary.timeSavedSeconds), "clock.arrow.circlepath")
+    Card(padding: Theme.Spacing.large) {
+      HStack(alignment: .top, spacing: Theme.Spacing.large) {
+        Stat(value: summary.totalWords.formatted(), label: "Total words")
+        rule
+        Stat(
+          value: "\(Int(summary.averageWordsPerMinute))", label: "Words per minute", unit: "wpm")
+        rule
+        Stat(value: "\(summary.currentStreakDays)", label: "Day streak", tint: Theme.clay)
+        rule
+        Stat(value: formatted(summary.timeSavedSeconds), label: "Time saved")
+      }
     }
   }
 
-  private func streaks(_ summary: InsightsSummary) -> some View {
-    HStack(spacing: Theme.Spacing.medium) {
-      stat("Today", "\(summary.wordsToday) words", "sun.max")
-      stat("This week", "\(summary.wordsThisWeek) words", "calendar")
-      stat(
-        "Streak",
-        summary.currentStreakDays == 1 ? "1 day" : "\(summary.currentStreakDays) days",
-        "flame")
-      stat("Longest", "\(summary.longestStreakDays) days", "trophy")
-    }
-  }
-
-  private func stat(_ title: String, _ value: String, _ symbol: String) -> some View {
-    VStack(alignment: .leading, spacing: 6) {
-      Label(title, systemImage: symbol).font(.caption).foregroundStyle(.secondary)
-      Text(value).font(.title3.weight(.semibold)).monospacedDigit()
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .card()
+  private var rule: some View {
+    Rectangle().fill(Theme.hairline).frame(width: 1, height: 38)
   }
 
   private var wordsChart: some View {
-    SectionCard(title: "Words per day") {
-      Chart(daily, id: \.day) { entry in
-        BarMark(x: .value("Day", entry.date, unit: .day), y: .value("Words", entry.words))
-          .foregroundStyle(Theme.accent.gradient)
-          .cornerRadius(2)
-      }
-      .frame(height: 180)
-      .chartYAxis { AxisMarks(position: .leading) }
-    }
-  }
-
-  private var categoryChart: some View {
-    SectionCard(title: "Where the words went") {
-      if categories.isEmpty {
-        Text("Not enough history yet.").font(.callout).foregroundStyle(.secondary)
-      } else {
-        VStack(alignment: .leading, spacing: 8) {
-          ForEach(categories, id: \.category) { usage in
-            HStack {
-              Text(usage.category.displayName).font(.callout).frame(width: 150, alignment: .leading)
-              GeometryReader { geometry in
-                RoundedRectangle(cornerRadius: 3)
-                  .fill(Theme.accent.opacity(0.75))
-                  .frame(width: max(2, geometry.size.width * usage.share))
+    Section2("Words per day") {
+      Card {
+        if daily.allSatisfy({ $0.words == 0 }) {
+          Text("No activity in this period.")
+            .font(.system(size: 12)).foregroundStyle(Theme.inkMuted)
+            .frame(height: 150)
+        } else {
+          let peak = max(1, daily.map(\.words).max() ?? 1)
+          HStack(alignment: .bottom, spacing: 3) {
+            ForEach(daily, id: \.day) { entry in
+              VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                RoundedRectangle(cornerRadius: 2)
+                  .fill(entry.words == 0 ? Theme.sunken : Theme.clay.opacity(0.85))
+                  .frame(height: max(3, CGFloat(entry.words) / CGFloat(peak) * 150))
               }
-              .frame(height: 10)
-              Text("\(Int(usage.share * 100))%")
-                .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                .frame(width: 40, alignment: .trailing)
+              .help("\(entry.words) words")
             }
           }
+          .frame(height: 150)
         }
       }
     }
   }
 
-  /// Only visible in developer mode. A dictation app that reports its own latency at
-  /// you is a dictation app you notice.
-  private var latencyTable: some View {
-    SectionCard(title: "Latency", subtitle: "Per stage, in milliseconds.") {
-      if latency.isEmpty {
-        Text("No samples recorded yet.").font(.callout).foregroundStyle(.secondary)
-      } else {
-        VStack(alignment: .leading, spacing: 4) {
-          ForEach(latency, id: \.stage) { profile in
-            HStack {
-              Text(profile.stage).font(.caption).frame(width: 140, alignment: .leading)
-              Text("\(profile.sampleCount) samples")
-                .font(.caption2).foregroundStyle(.tertiary)
-              Spacer()
+  private var categoryBreakdown: some View {
+    Section2("Where the words went") {
+      Card {
+        if categories.isEmpty {
+          Text("Not enough history yet.")
+            .font(.system(size: 12)).foregroundStyle(Theme.inkMuted)
+            .frame(height: 150, alignment: .top)
+        } else {
+          VStack(alignment: .leading, spacing: 9) {
+            ForEach(Array(categories.prefix(6).enumerated()), id: \.element.category) { index, usage in
+              HStack(spacing: 9) {
+                Circle()
+                  .fill(Theme.categoryColours[index % Theme.categoryColours.count])
+                  .frame(width: 7, height: 7)
+                Text(usage.category.displayName)
+                  .font(.system(size: 12.5))
+                  .foregroundStyle(Theme.ink)
+                Spacer(minLength: Theme.Spacing.tight)
+                Text("\(Int(usage.share * 100))%")
+                  .font(.system(size: 12).monospacedDigit())
+                  .foregroundStyle(Theme.inkMuted)
+              }
+              GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                  Capsule().fill(Theme.sunken)
+                  Capsule()
+                    .fill(Theme.categoryColours[index % Theme.categoryColours.count].opacity(0.8))
+                    .frame(width: max(3, geometry.size.width * usage.share))
+                }
+              }
+              .frame(height: 5)
             }
           }
+          .frame(minHeight: 150, alignment: .top)
         }
       }
     }
+  }
+
+  /// A contribution grid. It is the clearest way to show a streak, and unlike a
+  /// number it also shows the shape of the habit.
+  private func streakGrid(_ summary: InsightsSummary) -> some View {
+    Section2(
+      "Your streak",
+      subtitle: "Longest so far: \(summary.longestStreakDays) days"
+    ) {
+      Card {
+        let peak = max(1, daily.map(\.words).max() ?? 1)
+        HStack(spacing: 3) {
+          ForEach(daily, id: \.day) { entry in
+            RoundedRectangle(cornerRadius: 2.5)
+              .fill(fill(for: entry.words, peak: peak))
+              .frame(width: 13, height: 13)
+              .help("\(TranscriptList.dayLabel(entry.date)): \(entry.words) words")
+          }
+          Spacer(minLength: 0)
+        }
+      }
+    }
+  }
+
+  private func fill(for words: Int, peak: Int) -> Color {
+    guard words > 0 else { return Theme.sunken }
+    let intensity = Double(words) / Double(peak)
+    return Theme.clay.opacity(0.28 + 0.72 * min(1, intensity))
   }
 
   private func formatted(_ seconds: Double) -> String {
-    let minutes = Int(seconds / 60)
-    if minutes < 60 { return "\(minutes) min" }
-    return String(format: "%.1f hours", seconds / 3600)
+    if seconds < 60 { return "0m" }
+    if seconds < 3_600 { return "\(Int(seconds / 60))m" }
+    return String(format: "%.1fh", seconds / 3_600)
   }
 
   private func reload() {
@@ -150,6 +186,5 @@ struct InsightsView: View {
     summary = try? engine.summary()
     daily = (try? engine.dailySeries(days: range)) ?? []
     categories = (try? engine.usageByCategory(days: range)) ?? []
-    latency = (try? engine.latencyProfiles()) ?? []
   }
 }

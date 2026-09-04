@@ -7,7 +7,11 @@ struct SettingsView: View {
   @EnvironmentObject private var permissions: Permissions
 
   var body: some View {
-    TabView {
+    VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+      PageTitle(title: "Settings", subtitle: "Everything Rant does, and what it does with your words.")
+        .padding(.horizontal, Theme.Spacing.page)
+        .padding(.top, Theme.Spacing.page)
+      TabView {
       GeneralSettings()
         .tabItem { Label("General", systemImage: "gearshape") }
         .accessibilityIdentifier("settings.general")
@@ -23,8 +27,12 @@ struct SettingsView: View {
       DiagnosticsSettings()
         .tabItem { Label("Diagnostics", systemImage: "stethoscope") }
         .accessibilityIdentifier("settings.diagnostics")
+      }
+      .padding(.horizontal, Theme.Spacing.medium)
+      .padding(.bottom, Theme.Spacing.medium)
     }
-    .navigationTitle("Settings")
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background(Theme.paper)
   }
 }
 
@@ -86,7 +94,7 @@ struct SpeechSettings: View {
         // because a key visible on screen is a key in a screenshot.
         if model.hasAPIKey {
           Label("A key is stored in your Keychain", systemImage: "key.fill")
-            .foregroundStyle(Theme.success)
+            .foregroundStyle(Theme.moss)
         }
         SecureField("Paste your API key", text: $apiKey)
           .textFieldStyle(.roundedBorder)
@@ -98,7 +106,7 @@ struct SpeechSettings: View {
           Spacer()
         }
         if let message = APIKeyValidator.check(apiKey).message, !apiKey.isEmpty {
-          Text(message).font(.caption).foregroundStyle(Theme.recording)
+          Text(message).font(.caption).foregroundStyle(Theme.live)
         }
         if let testResult {
           Text(testResult).font(.caption).foregroundStyle(.secondary)
@@ -282,7 +290,7 @@ struct DiagnosticsSettings: View {
       Section("Keyboard") {
         LabeledContent("Event tap", value: model.hotkeyProblem == nil ? "Installed" : "Not installed")
         if let problem = model.hotkeyProblem {
-          Text(problem).font(.caption).foregroundStyle(Theme.recording)
+          Text(problem).font(.caption).foregroundStyle(Theme.live)
         }
         Button("Reinstall keyboard listener") { model.installHotkeys() }
       }
@@ -294,7 +302,7 @@ struct DiagnosticsSettings: View {
   private func row(_ title: String, granted: Bool, pane: Permissions.Pane) -> some View {
     HStack {
       Label(title, systemImage: granted ? "checkmark.circle.fill" : "xmark.circle")
-        .foregroundStyle(granted ? Theme.success : .secondary)
+        .foregroundStyle(granted ? Theme.moss : .secondary)
       Spacer()
       if !granted {
         Button("Open Settings") { permissions.open(pane) }.buttonStyle(.link)

@@ -151,3 +151,80 @@ final class SecretStoreTests: XCTestCase {
     XCTAssertLessThan(ContinuousClock.now - started, .seconds(5))
   }
 }
+
+/// The caching layer exists to bound how often macOS can raise a password dialog, so
+/// "how many times did it actually ask" is the thing worth asserting.
+extension SecretStoreTests {
+
+  /// Counts reads so the test can assert on them.
+  private final class CountingStore: SecretStoring, @unchecked Sendable {
+    private let inner = InMemorySecretStore()
+    private let lock = NSLock()
+    private var reads = 0
+    var readCount: Int { lock.withLock { reads } }
+
+    func read(_ key: SecretKey) throws -> String? {
+      lock.withLock { reads += 1 }
+      return try inner.read(key)
+    }
+    func write(_ value: String, for key: SecretKey) throws { try inner.write(value, for: key) }
+    func delete(_ key: SecretKey) throws { try inner.delete(key) }
+  }
+
+  func testTheKeychainIsAskedOnlyOncePerSecret() throws {
+    let counting = CountingStore()
+    try counting.write("a-stored-key-value", for: .assemblyAI)
+    let store = CachingSecretStore(counting)
+
+    for _ in 0..<20 {
+      XCTAssertEqual(try store.read(.assemblyAI), "a-stored-key-value")
+    }
+    XCTAssertEqual(counting.readCount, 1, "the Keychain was asked \(counting.readCount) times")
+  }
+
+  /// A missing secret must be cached too, or the app asks on every redraw for a key
+  /// that is not there — which is exactly the case where the prompt is most confusing.
+  func testAnAbsentSecretIsAlsoRememberedRatherThanAskedForRepeatedly() throws {
+    let counting = CountingStore()
+    let store = CachingSecretStore(counting)
+
+    for _ in 0..<10 { XCTAssertNil(try store.read(.assemblyAI)) }
+    XCTAssertEqual(counting.readCount, 1)
+  }
+
+  func testWritingAKeyMakesTheNextReadSeeIt() throws {
+    let store = CachingSecretStore(InMemorySecretStore())
+    XCTAssertNil(try store.read(.assemblyAI))
+    try store.write("the-new-key-value", for: .assemblyAI)
+    XCTAssertEqual(try store.read(.assemblyAI), "the-new-key-value")
+  }
+
+  func testDeletingAKeyMakesTheNextReadSeeItGone() throws {
+    let store = CachingSecretStore(InMemorySecretStore(["assemblyAI": ""].isEmpty ? [:] : [:]))
+    try store.write("something", for: .assemblyAI)
+    XCTAssertNotNil(try store.read(.assemblyAI))
+    try store.delete(.assemblyAI)
+    XCTAssertNil(try store.read(.assemblyAI))
+  }
+
+  func testInvalidateForcesAFreshLook() throws {
+    let counting = CountingStore()
+    let store = CachingSecretStore(counting)
+    _ = try store.read(.assemblyAI)
+    store.invalidate()
+    _ = try store.read(.assemblyAI)
+    XCTAssertEqual(counting.readCount, 2)
+  }
+
+  func testEachSecretIsCachedSeparately() throws {
+    let counting = CountingStore()
+    try counting.write("one", for: .assemblyAI)
+    try counting.write("two", for: .openAICompatible)
+    let store = CachingSecretStore(counting)
+
+    XCTAssertEqual(try store.read(.assemblyAI), "one")
+    XCTAssertEqual(try store.read(.openAICompatible), "two")
+    XCTAssertEqual(try store.read(.assemblyAI), "one")
+    XCTAssertEqual(counting.readCount, 2)
+  }
+}

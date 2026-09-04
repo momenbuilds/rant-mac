@@ -8,13 +8,20 @@ import SwiftUI
 /// and a flat list of styles cannot answer it.
 struct StylesView: View {
   @EnvironmentObject private var model: AppModel
-  @State private var selection: WritingStyle.ID?
+  @State private var selection: String?
 
   private var styles: [WritingStyle] { WritingStyle.builtIns }
 
   var body: some View {
-    HSplitView {
-      List(styles, selection: $selection) { style in
+    VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+      PageTitle(
+        title: "Styles",
+        subtitle: "How Rant writes for you, and where each one applies.")
+        .padding(.horizontal, Theme.Spacing.page)
+        .padding(.top, Theme.Spacing.page)
+      Divider().overlay(Theme.hairline)
+      HSplitView {
+        List(styles, selection: $selection) { style in
         VStack(alignment: .leading, spacing: 2) {
           HStack {
             Text(style.name).fontWeight(.medium)
@@ -32,10 +39,13 @@ struct StylesView: View {
       }
       .frame(minWidth: 220, idealWidth: 240)
 
-      detail
-        .frame(minWidth: 380)
+        detail
+          .frame(minWidth: 380)
+      }
+      .frame(maxHeight: .infinity)
     }
-    .navigationTitle("Styles")
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background(Theme.paper)
   }
 
   @ViewBuilder private var detail: some View {
@@ -72,7 +82,7 @@ struct StylesView: View {
         .frame(maxWidth: 640, alignment: .leading)
       }
     } else {
-      ContentUnavailableView("Select a style", systemImage: "paintbrush")
+      EmptyState(icon: "paintbrush.pointed", title: "Select a style", message: "")
     }
   }
 
@@ -80,7 +90,7 @@ struct StylesView: View {
     HStack(alignment: .firstTextBaseline, spacing: 8) {
       Text("\(number)")
         .font(.caption.monospacedDigit())
-        .foregroundStyle(Theme.accent)
+        .foregroundStyle(Theme.clay)
         .frame(width: 16, alignment: .trailing)
       Text(text).font(.callout)
     }
@@ -89,12 +99,17 @@ struct StylesView: View {
 
 /// Modes: the whole pipeline, not just the wording.
 struct ModesView: View {
-  @State private var selection: Mode.ID?
+  @State private var selection: String?
   private var modes: [Mode] { Mode.builtIns }
 
   var body: some View {
-    HSplitView {
-      List(modes, selection: $selection) { mode in
+    VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+      PageTitle(title: "Modes", subtitle: "The whole pipeline, not just the wording.")
+        .padding(.horizontal, Theme.Spacing.page)
+        .padding(.top, Theme.Spacing.page)
+      Divider().overlay(Theme.hairline)
+      HSplitView {
+        List(modes, selection: $selection) { mode in
         VStack(alignment: .leading, spacing: 2) {
           Text(mode.name).fontWeight(.medium)
           Text(triggerSummary(mode)).font(.caption2).foregroundStyle(.secondary)
@@ -143,11 +158,14 @@ struct ModesView: View {
           .padding(Theme.Spacing.large)
           .frame(maxWidth: 640, alignment: .leading)
         }
-      } else {
-        ContentUnavailableView("Select a mode", systemImage: "slider.horizontal.3")
+        } else {
+          EmptyState(icon: "slider.horizontal.3", title: "Select a mode", message: "")
+        }
       }
+      .frame(maxHeight: .infinity)
     }
-    .navigationTitle("Modes")
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background(Theme.paper)
   }
 
   private func triggerSummary(_ mode: Mode) -> String {

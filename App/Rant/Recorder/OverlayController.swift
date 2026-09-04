@@ -82,7 +82,7 @@ final class OverlayController: ObservableObject {
 
   private func makePanel() -> NSPanel {
     let panel = NonActivatingPanel(
-      contentRect: NSRect(x: 0, y: 0, width: 320, height: 76),
+      contentRect: NSRect(x: 0, y: 0, width: 330, height: 72),
       styleMask: [.borderless, .nonactivatingPanel],
       backing: .buffered,
       defer: false)

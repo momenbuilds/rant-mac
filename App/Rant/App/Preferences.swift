@@ -23,6 +23,12 @@ final class Preferences: ObservableObject {
         defaults.removeObject(forKey: key)
       }
     }
+    // The design tour wants the main window, not onboarding. Walking a screenshot
+    // harness through seven steps to reach the screens it came to photograph is
+    // fragile for no benefit — onboarding has its own test.
+    if defaults.bool(forKey: "rant-ui-skip-onboarding") {
+      defaults.set(true, forKey: Key.hasCompletedOnboarding)
+    }
     self.hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
     self.triggerKey = TriggerKey(rawValue: defaults.string(forKey: Key.triggerKey) ?? "") ?? .rightCommand
     self.activationMode = ActivationMode(rawValue: defaults.string(forKey: Key.activationMode) ?? "") ?? .hybrid

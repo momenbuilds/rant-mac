@@ -19,39 +19,58 @@ struct DictionaryView: View {
   }
 
   var body: some View {
-    Group {
-      if entries.isEmpty {
-        ContentUnavailableView {
-          Label("No entries yet", systemImage: "character.book.closed")
-        } description: {
-          Text("Teach Rant the words it keeps getting wrong — names, brands, jargon. “super base” becomes Supabase, and it applies from the very next dictation.")
-        } actions: {
-          Button("Add an entry") { newEntry() }
-            .accessibilityIdentifier("dictionary.add")
+    VStack(alignment: .leading, spacing: Theme.Spacing.large) {
+      PageTitle(
+        title: "Dictionary",
+        subtitle: "Teach Rant the words it keeps getting wrong.",
+        accessory: AnyView(
+          HStack(spacing: Theme.Spacing.tight) {
+            Menu {
+              Button("Export as JSON…") { export() }
+              Button("Import from JSON…") { importEntries() }
+            } label: {
+              Image(systemName: "ellipsis")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.inkMuted)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .accessibilityLabel("Dictionary actions")
+
+            Button("Add entry") { newEntry() }
+              .buttonStyle(.clay)
+              .accessibilityIdentifier("dictionary.addToolbar")
+          }))
+
+      if !entries.isEmpty { SearchField(query: $query, prompt: "Search your dictionary") }
+
+      if shown.isEmpty {
+        Card {
+          EmptyState(
+            icon: "character.book.closed",
+            title: entries.isEmpty ? "No entries yet" : "Nothing matches “\(query)”",
+            message: entries.isEmpty
+              ? "Names, brands, jargon — anything Rant mishears. “super base” becomes Supabase, and it applies from the very next dictation."
+              : "Try a different word.",
+            actionTitle: entries.isEmpty ? "Add an entry" : nil,
+            action: entries.isEmpty ? { newEntry() } : nil,
+            actionIdentifier: "dictionary.add")
         }
       } else {
-        List {
-          ForEach(shown) { entry in
-            row(entry)
+        Card(padding: 0) {
+          VStack(spacing: 0) {
+            ForEach(Array(shown.enumerated()), id: \.element.id) { index, entry in
+              row(entry)
+              if index < shown.count - 1 {
+                Divider().overlay(Theme.hairline).padding(.leading, Theme.Spacing.medium)
+              }
+            }
           }
         }
-        .listStyle(.inset)
       }
     }
-    .searchable(text: $query, prompt: "Search your dictionary")
-    .navigationTitle("Dictionary")
-    .toolbar {
-      ToolbarItem(placement: .primaryAction) {
-        Button { newEntry() } label: { Label("Add", systemImage: "plus") }
-          .accessibilityIdentifier("dictionary.addToolbar")
-      }
-      ToolbarItem {
-        Menu {
-          Button("Export as JSON…") { export() }
-          Button("Import from JSON…") { importEntries() }
-        } label: { Label("More", systemImage: "ellipsis.circle") }
-      }
-    }
+    .page()
     .sheet(isPresented: $showingEditor) {
       DictionaryEntryEditor(entry: editing ?? DictionaryEntry(spoken: "", written: "")) { saved in
         save(saved)
@@ -67,46 +86,59 @@ struct DictionaryView: View {
 
   private func row(_ entry: DictionaryEntry) -> some View {
     HStack(spacing: Theme.Spacing.small) {
-      VStack(alignment: .leading, spacing: 2) {
-        HStack(spacing: 6) {
-          Text(entry.spoken).foregroundStyle(.secondary)
-          // Decorative: the accessibility label below reads "X becomes Y", which is
-          // clearer than announcing an arrow between two words.
-          Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.tertiary)
+      VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: 7) {
+          Text(entry.spoken).font(.system(size: 13)).foregroundStyle(Theme.inkMuted)
+          Image(systemName: "arrow.right")
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(Theme.inkFaint)
             .accessibilityHidden(true)
-          Text(entry.written).fontWeight(.medium)
+          Text(entry.written).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink)
         }
         HStack(spacing: 6) {
           Text(entry.kind.displayName)
           if entry.caseSensitive { Text("· case sensitive") }
-          if !entry.enabled { Text("· off") }
         }
-        .font(.caption2).foregroundStyle(.tertiary)
+        .font(.system(size: 11))
+        .foregroundStyle(Theme.inkFaint)
       }
-      Spacer()
-      Toggle("", isOn: Binding(
-        get: { entry.enabled },
-        set: { value in
-          var updated = entry
-          updated.enabled = value
-          try? model.vocabulary?.update(updated)
-          reload()
-        }))
-        .labelsHidden()
-        .toggleStyle(.switch)
-        .controlSize(.mini)
+      Spacer(minLength: Theme.Spacing.small)
+
+      Toggle(
+        "", isOn: Binding(
+          get: { entry.enabled },
+          set: { value in
+            var updated = entry
+            updated.enabled = value
+            try? model.vocabulary?.update(updated)
+            model.rebuildVocabulary()
+            reload()
+          })
+      )
+      .labelsHidden()
+      .toggleStyle(.switch)
+      .controlSize(.mini)
+      .accessibilityLabel("Enabled")
+
       Menu {
         Button("Edit") { editing = entry; showingEditor = true }
         Button("Delete", role: .destructive) {
-          if let id = entry.id { try? model.vocabulary?.deleteEntry(id: id); reload() }
+          if let id = entry.id {
+            try? model.vocabulary?.deleteEntry(id: id)
+            model.rebuildVocabulary()
+            reload()
+          }
         }
-      } label: { Image(systemName: "ellipsis.circle") }
-      .accessibilityLabel("Actions for this entry")
+      } label: {
+        Image(systemName: "ellipsis").font(.system(size: 12)).foregroundStyle(Theme.inkFaint)
+      }
       .menuStyle(.borderlessButton)
       .menuIndicator(.hidden)
-      .frame(width: 28)
+      .frame(width: 22)
+      .accessibilityLabel("Actions for this entry")
     }
-    .padding(.vertical, 4)
+    .padding(.horizontal, Theme.Spacing.medium)
+    .padding(.vertical, Theme.Spacing.small)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("\(entry.spoken) becomes \(entry.written)")
   }
@@ -152,49 +184,101 @@ struct DictionaryView: View {
   }
 }
 
+/// The search field, styled once and reused, because `.searchable` needs a navigation
+/// container this app deliberately does not have.
+struct SearchField: View {
+  @Binding var query: String
+  let prompt: String
+
+  var body: some View {
+    HStack(spacing: 8) {
+      Image(systemName: "magnifyingglass")
+        .font(.system(size: 12)).foregroundStyle(Theme.inkFaint)
+        .accessibilityHidden(true)
+      TextField(prompt, text: $query)
+        .textFieldStyle(.plain)
+        .font(.system(size: 13))
+        .foregroundStyle(Theme.ink)
+      if !query.isEmpty {
+        Button { query = "" } label: {
+          Image(systemName: "xmark.circle.fill")
+            .font(.system(size: 12)).foregroundStyle(Theme.inkFaint)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Clear search")
+      }
+    }
+    .padding(.horizontal, 12)
+    .padding(.vertical, 8)
+    .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+    .overlay(
+      RoundedRectangle(cornerRadius: Theme.Radius.control)
+        .strokeBorder(Theme.hairline, lineWidth: 1))
+  }
+}
+
 struct DictionaryEntryEditor: View {
   @State var entry: DictionaryEntry
   let onSave: (DictionaryEntry) -> Void
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
-    Form {
-      Section {
-        TextField("When I say", text: $entry.spoken)
-          .accessibilityIdentifier("dictionary.spoken")
-        TextField("Write", text: $entry.written)
-          .accessibilityIdentifier("dictionary.written")
-      } footer: {
+    VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+      Text(entry.id == nil ? "New entry" : "Edit entry")
+        .font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.ink)
+
+      VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
+        field("When I say", text: $entry.spoken, identifier: "dictionary.spoken")
+        field("Write", text: $entry.written, identifier: "dictionary.written")
         Text("Matched as whole words, so an entry for “sell” will never corrupt the middle of “reseller”.")
-          .font(.caption).foregroundStyle(.secondary)
+          .font(.system(size: 11.5)).foregroundStyle(Theme.inkMuted)
+          .fixedSize(horizontal: false, vertical: true)
       }
-      Section {
+
+      VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
         Picker("Kind", selection: $entry.kind) {
           ForEach(DictionaryEntry.Kind.allCases, id: \.self) { Text($0.displayName).tag($0) }
         }
-        Toggle("Match capitals exactly", isOn: $entry.caseSensitive)
-        Toggle("Enabled", isOn: $entry.enabled)
-      } footer: {
+        .pickerStyle(.segmented)
+        .labelsHidden()
         Text(entry.kind == .boost
           ? "A key term nudges the recogniser toward this spelling without rewriting anything."
           : "A replacement rewrites the text after transcription, so it always wins over the model.")
-          .font(.caption).foregroundStyle(.secondary)
+          .font(.system(size: 11.5)).foregroundStyle(Theme.inkMuted)
+          .fixedSize(horizontal: false, vertical: true)
+        Toggle("Match capitals exactly", isOn: $entry.caseSensitive).font(.system(size: 13))
+        Toggle("Enabled", isOn: $entry.enabled).font(.system(size: 13))
       }
-    }
-    .formStyle(.grouped)
-    .frame(width: 460)
-    .safeAreaInset(edge: .bottom) {
+
       HStack {
-        Button("Cancel") { dismiss() }
+        Button("Cancel") { dismiss() }.buttonStyle(.quiet)
         Spacer()
         Button("Save") { onSave(entry) }
-          .buttonStyle(.borderedProminent)
+          .buttonStyle(.clay)
           .accessibilityIdentifier("dictionary.save")
           .disabled(entry.spoken.trimmingCharacters(in: .whitespaces).isEmpty
             || entry.written.trimmingCharacters(in: .whitespaces).isEmpty)
       }
-      .padding()
-      .background(.bar)
+    }
+    .padding(Theme.Spacing.large)
+    .frame(width: 440)
+    .background(Theme.paper)
+  }
+
+  private func field(_ label: String, text: Binding<String>, identifier: String) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text(label.uppercased()).font(Theme.label).tracking(0.7).foregroundStyle(Theme.inkFaint)
+      TextField("", text: text)
+        .textFieldStyle(.plain)
+        .font(.system(size: 13))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+        .overlay(
+          RoundedRectangle(cornerRadius: Theme.Radius.control)
+            .strokeBorder(Theme.hairline, lineWidth: 1))
+        .accessibilityIdentifier(identifier)
+        .accessibilityLabel(label)
     }
   }
 }
@@ -208,43 +292,67 @@ struct SnippetsView: View {
   @State private var errorMessage: String?
 
   var body: some View {
-    Group {
+    VStack(alignment: .leading, spacing: Theme.Spacing.large) {
+      PageTitle(
+        title: "Snippets",
+        subtitle: "Say a short phrase, get a long one.",
+        accessory: AnyView(
+          Button("Add snippet") { editing = nil; showingEditor = true }
+            .buttonStyle(.clay)
+            .accessibilityIdentifier("snippets.addToolbar")))
+
       if snippets.isEmpty {
-        ContentUnavailableView {
-          Label("No snippets yet", systemImage: "text.badge.plus")
-        } description: {
-          Text("Say a short phrase, get a long one. “my meeting link” becomes your booking URL — and it works in the middle of a longer sentence.")
-        } actions: {
-          Button("Add a snippet") { editing = nil; showingEditor = true }
-            .accessibilityIdentifier("snippets.add")
+        Card {
+          EmptyState(
+            icon: "text.append",
+            title: "No snippets yet",
+            message: "“my meeting link” becomes your booking URL — and it works in the middle of a longer sentence, not just on its own.",
+            actionTitle: "Add a snippet",
+            action: { editing = nil; showingEditor = true },
+            actionIdentifier: "snippets.add")
         }
       } else {
-        List {
-          ForEach(snippets) { snippet in
-            VStack(alignment: .leading, spacing: 3) {
-              Text(snippet.trigger).fontWeight(.medium)
-              Text(snippet.expansion)
-                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-            }
-            .padding(.vertical, 3)
-            .contextMenu {
-              Button("Edit") { editing = snippet; showingEditor = true }
-              Button("Delete", role: .destructive) {
-                if let id = snippet.id { try? model.vocabulary?.deleteSnippet(id: id); reload() }
+        Card(padding: 0) {
+          VStack(spacing: 0) {
+            ForEach(Array(snippets.enumerated()), id: \.element.id) { index, snippet in
+              HStack(alignment: .top, spacing: Theme.Spacing.small) {
+                VStack(alignment: .leading, spacing: 3) {
+                  Text(snippet.trigger)
+                    .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink)
+                  Text(snippet.expansion)
+                    .font(.system(size: 12)).foregroundStyle(Theme.inkMuted)
+                    .lineLimit(2)
+                }
+                Spacer(minLength: Theme.Spacing.small)
+                Menu {
+                  Button("Edit") { editing = snippet; showingEditor = true }
+                  Button("Delete", role: .destructive) {
+                    if let id = snippet.id {
+                      try? model.vocabulary?.deleteSnippet(id: id)
+                      model.rebuildVocabulary()
+                      reload()
+                    }
+                  }
+                } label: {
+                  Image(systemName: "ellipsis")
+                    .font(.system(size: 12)).foregroundStyle(Theme.inkFaint)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 22)
+                .accessibilityLabel("Actions for this snippet")
+              }
+              .padding(.horizontal, Theme.Spacing.medium)
+              .padding(.vertical, Theme.Spacing.small)
+              if index < snippets.count - 1 {
+                Divider().overlay(Theme.hairline).padding(.leading, Theme.Spacing.medium)
               }
             }
           }
         }
-        .listStyle(.inset)
       }
     }
-    .navigationTitle("Snippets")
-    .toolbar {
-      ToolbarItem(placement: .primaryAction) {
-        Button { editing = nil; showingEditor = true } label: { Label("Add", systemImage: "plus") }
-          .accessibilityIdentifier("snippets.addToolbar")
-      }
-    }
+    .page()
     .sheet(isPresented: $showingEditor) {
       SnippetEditor(snippet: editing ?? Snippet(trigger: "", expansion: "")) { saved in
         do {
@@ -275,36 +383,55 @@ struct SnippetEditor: View {
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
-    Form {
-      Section {
-        TextField("When I say", text: $snippet.trigger)
+    VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+      Text(snippet.id == nil ? "New snippet" : "Edit snippet")
+        .font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.ink)
+
+      VStack(alignment: .leading, spacing: 4) {
+        Text("WHEN I SAY").font(Theme.label).tracking(0.7).foregroundStyle(Theme.inkFaint)
+        TextField("", text: $snippet.trigger)
+          .textFieldStyle(.plain)
+          .font(.system(size: 13))
+          .padding(.horizontal, 10).padding(.vertical, 7)
+          .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+          .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.control)
+              .strokeBorder(Theme.hairline, lineWidth: 1))
           .accessibilityIdentifier("snippets.trigger")
-      } footer: {
+          .accessibilityLabel("When I say")
         Text("A short, distinctive phrase you would not say by accident.")
-          .font(.caption).foregroundStyle(.secondary)
+          .font(.system(size: 11.5)).foregroundStyle(Theme.inkMuted)
       }
-      Section("Expand to") {
+
+      VStack(alignment: .leading, spacing: 4) {
+        Text("EXPAND TO").font(Theme.label).tracking(0.7).foregroundStyle(Theme.inkFaint)
         TextEditor(text: $snippet.expansion)
-          .font(.body.monospaced())
-          .frame(minHeight: 120)
+          .font(.system(size: 13, design: .monospaced))
+          .scrollContentBackground(.hidden)
+          .padding(6)
+          .frame(minHeight: 110)
+          .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+          .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.control)
+              .strokeBorder(Theme.hairline, lineWidth: 1))
           .accessibilityIdentifier("snippets.expansion")
+          .accessibilityLabel("Expand to")
       }
-      Toggle("Enabled", isOn: $snippet.enabled)
-    }
-    .formStyle(.grouped)
-    .frame(width: 480)
-    .safeAreaInset(edge: .bottom) {
+
+      Toggle("Enabled", isOn: $snippet.enabled).font(.system(size: 13))
+
       HStack {
-        Button("Cancel") { dismiss() }
+        Button("Cancel") { dismiss() }.buttonStyle(.quiet)
         Spacer()
         Button("Save") { onSave(snippet) }
-          .buttonStyle(.borderedProminent)
+          .buttonStyle(.clay)
           .accessibilityIdentifier("snippets.save")
           .disabled(snippet.trigger.trimmingCharacters(in: .whitespaces).isEmpty
             || snippet.expansion.isEmpty)
       }
-      .padding()
-      .background(.bar)
     }
+    .padding(Theme.Spacing.large)
+    .frame(width: 460)
+    .background(Theme.paper)
   }
 }

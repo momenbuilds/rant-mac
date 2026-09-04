@@ -192,3 +192,26 @@ final class StyleTests: XCTestCase {
     XCTAssertEqual(decoded, mode.configuration)
   }
 }
+
+/// Regression: identity used to be the database row id, which is nil for every
+/// built-in — so a SwiftUI list treated all ten styles as the same item and drew the
+/// first one ten times. It looked like a view bug and was a model one.
+extension StyleTests {
+  func testEveryBuiltInStyleHasADistinctIdentity() {
+    let identities = WritingStyle.builtIns.map(\.id)
+    XCTAssertEqual(Set(identities).count, WritingStyle.builtIns.count)
+    XCTAssertFalse(identities.contains(""))
+  }
+
+  func testEveryBuiltInModeHasADistinctIdentity() {
+    let identities = Mode.builtIns.map(\.id)
+    XCTAssertEqual(Set(identities).count, Mode.builtIns.count)
+  }
+
+  func testIdentityIsStableAcrossACopy() {
+    var style = WritingStyle.builtIns[0]
+    let before = style.id
+    style.rowID = 42
+    XCTAssertEqual(style.id, before, "saving a style must not change what identifies it")
+  }
+}

@@ -15,30 +15,46 @@ struct NotetakerView: View {
   @State private var query = ""
 
   var body: some View {
-    HSplitView {
-      list.frame(minWidth: 250, idealWidth: 290)
-      detail.frame(minWidth: 420)
-    }
-    .navigationTitle("Notetaker")
-    .toolbar {
-      ToolbarItem(placement: .primaryAction) {
-        Button { model.startMeeting() } label: {
-          Label("Start recording", systemImage: "record.circle")
-        }
-        .help("Records your microphone and, with Screen Recording granted, the other people on the call")
+    VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+      PageTitle(
+        title: "Notetaker",
+        subtitle: "Records locally. Nothing joins your call.",
+        accessory: AnyView(
+          HStack(spacing: Theme.Spacing.tight) {
+            Menu {
+              ForEach(MeetingExportFormat.allCases, id: \.self) { format in
+                Button("Export as \(format.rawValue.uppercased())") { export(format) }
+              }
+              Divider()
+              Button("Delete", role: .destructive) { deleteSelected() }
+            } label: {
+              Image(systemName: "ellipsis")
+                .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.inkMuted)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .accessibilityLabel("Meeting actions")
+            .disabled(current == nil)
+
+            Button {
+              model.startMeeting()
+            } label: {
+              Label("Start recording", systemImage: "record.circle")
+            }
+            .buttonStyle(.clay)
+            .help("Records your microphone and, with Screen Recording granted, the other people on the call")
+          }))
+        .padding(.horizontal, Theme.Spacing.page)
+        .padding(.top, Theme.Spacing.page)
+
+      HSplitView {
+        list.frame(minWidth: 250, idealWidth: 300)
+        detail.frame(minWidth: 420)
       }
-      ToolbarItem {
-        Menu {
-          ForEach(MeetingExportFormat.allCases, id: \.self) { format in
-            Button("Export as \(format.rawValue.uppercased())") { export(format) }
-          }
-          Divider()
-          Button("Delete", role: .destructive) { deleteSelected() }
-        } label: { Label("More", systemImage: "ellipsis.circle") }
-        .accessibilityLabel("Meeting actions")
-        .disabled(current == nil)
-      }
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background(Theme.paper)
     .onAppear(perform: reload)
     .onChange(of: selection) { _, _ in loadSegments() }
   }
@@ -65,7 +81,6 @@ struct NotetakerView: View {
         .padding(.vertical, 2)
         .tag(meeting.id ?? -1)
       }
-      .searchable(text: $query, prompt: "Search everything that was said")
     }
   }
 
@@ -128,7 +143,7 @@ struct NotetakerView: View {
                   VStack(alignment: .leading, spacing: 1) {
                     Text(label(for: segment))
                       .font(.caption.weight(.medium))
-                      .foregroundStyle(segment.channel == .me ? Theme.accent : .secondary)
+                      .foregroundStyle(segment.channel == .me ? Theme.clay : .secondary)
                     Text(segment.text).font(.callout).textSelection(.enabled)
                       .fixedSize(horizontal: false, vertical: true)
                   }
