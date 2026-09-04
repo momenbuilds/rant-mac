@@ -119,8 +119,20 @@ fi
 # Onboarding, navigation, CRUD and settings persistence. Global text injection is
 # NOT covered here and never will be — see docs/SMOKE_TEST.md for why.
 check_ui() {
-  bash scripts/ui-test.sh | tail -3
-  return "${PIPESTATUS[0]}"
+  # A passing run is noise, so only the tail is shown. A failing run needs to name the
+  # test that failed — a red build whose log says nothing but "TEST FAILED" costs an
+  # hour of guessing, and on CI there is no machine to reproduce it on.
+  local log="${TMPDIR:-/tmp}/rant-ui-test.$$.log"
+  local status=0
+  bash scripts/ui-test.sh >"$log" 2>&1 || status=$?
+  if [ "$status" -eq 0 ]; then
+    tail -3 "$log"
+  else
+    grep -E "failed|error:" "$log" | head -20
+    tail -3 "$log"
+  fi
+  rm -f "$log"
+  return "$status"
 }
 # Opt-in, not default. XCUITest drives the real cursor and takes over the machine for
 # two minutes, so running it on every check makes the machine unusable while you work.
