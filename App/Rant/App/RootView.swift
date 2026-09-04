@@ -59,6 +59,7 @@ struct MainWindow: View {
         NavigationLink(value: destination) {
           Label(destination.title, systemImage: destination.systemImage)
         }
+        .accessibilityIdentifier("sidebar.\(destination.rawValue)")
       }
       .navigationSplitViewColumnWidth(min: 190, ideal: 205, max: 260)
       .safeAreaInset(edge: .bottom) { statusFooter }

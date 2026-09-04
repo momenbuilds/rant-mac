@@ -32,7 +32,10 @@ public struct SQLiteTranscriptStore: TranscriptStore, Sendable {
       category: UsageCategory(rawValue: row.string(12)) ?? .other,
       durationMilliseconds: row.int(13),
       wordCount: row.int(14),
-      wordsPerMinute: row.intOrNil(15).map(Double.init) ?? (row.double(15) > 0 ? row.double(15) : nil),
+      // REAL column, so it must be read as a double. Reading it through
+      // `intOrNil` truncated 4.5 wpm to 4.0 on every read — the stored value was
+      // right, the read path was not.
+      wordsPerMinute: row.doubleOrNil(15),
       enhanced: row.bool(16),
       audioPath: row.stringOrNil(17),
       contentHash: row.string(18),

@@ -138,22 +138,22 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `swift test --filter HistoryTests`
 - [x] RANT-031 — Insights (words, WPM, streak, categories, latency)
   - verify: `swift test --filter InsightsTests`
-- [ ] RANT-032 — Rant Archive export/import (portable, versioned)
+- [x] RANT-032 — Rant Archive export/import (portable, versioned)
   - verify: `swift test --filter ArchiveTests`
-- [ ] RANT-033 — Migration Center + adapters (Wispr, VoiceInk, Superwhisper, Otter, TXT/MD/JSON/CSV/SRT/VTT)
+- [x] RANT-033 — Migration Center + adapters (Wispr, VoiceInk, Superwhisper, Otter, TXT/MD/JSON/CSV/SRT/VTT)
   - verify: `swift test --filter MigrationTests`
 - [x] RANT-034 — Audio retention policy + cleanup job
   - verify: `swift test --filter RetentionTests`
 
 ## Phase E — Power
 
-- [ ] RANT-040 — Selected-text transforms + diff preview
+- [x] RANT-040 — Selected-text transforms + diff preview
   - verify: `swift test --filter TransformTests`
-- [ ] RANT-041 — Command mode (constrained action model, preview/undo)
+- [x] RANT-041 — Command mode (constrained action model, preview/undo)
   - verify: `swift test --filter CommandModeTests`
-- [ ] RANT-042 — Developer context (IDE symbols, casing, @file references)
+- [x] RANT-042 — Developer context (IDE symbols, casing, @file references)
   - verify: `swift test --filter DeveloperContextTests`
-- [ ] RANT-043 — Scratchpad (local Markdown notes, voice append)
+- [x] RANT-043 — Scratchpad (local Markdown notes, voice append)
   - verify: `swift test --filter ScratchpadTests`
 - [x] RANT-044 — Local MCP server (opt-in, loopback, read-only default, audit log)
   - verify: `swift test --filter MCPTests`
@@ -194,7 +194,7 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `ls PRIVACY.md docs/NETWORK_BEHAVIOR.md docs/THREAT_MODEL.md`
 - [x] RANT-064 — App compatibility matrix + smoke test harness
   - verify: `ls docs/APP_COMPATIBILITY.md docs/SMOKE_TEST.md scripts/smoke-test.sh`
-- [~] RANT-065 — XCUITest suite (onboarding, navigation, CRUD flows)
+- [x] RANT-065 — XCUITest suite (onboarding, navigation, CRUD flows)
   - verify: `bash scripts/ui-test.sh`
 - [ ] RANT-066 — Packaging (.dmg / zip, ad-hoc signing, notarization docs)
   - verify: `bash scripts/package.sh`

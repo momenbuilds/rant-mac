@@ -32,7 +32,9 @@ public enum RecordMapper {
   static let secondKeys = ["duration", "durationSeconds", "elapsed", "length", "seconds"]
   static let languageKeys = ["language", "languageCode", "locale", "lang"]
   static let providerKeys = ["provider", "modelName", "transcriptionModelName", "model", "engine"]
-  static let identifierKeys = ["id", "uuid", "identifier", "recordingId", "speechId"]
+  static let identifierKeys = [
+    "id", "uuid", "identifier", "recordingId", "recordId", "flowId", "speechId", "otid",
+  ]
 
   public enum Mapped {
     case transcript(Transcript)

@@ -38,16 +38,16 @@ final class OnboardingUITests: XCTestCase {
   func testEveryOnboardingStepCanBeSkippedSoNobodyIsTrapped() {
     XCTAssertTrue(app.staticTexts["talk messy. write clean."].waitForExistence(timeout: 10))
     // A permission the user will not grant must never be a dead end.
-    for _ in 0..<6 {
-      let skip = app.buttons["Skip"]
+    for _ in 0..<8 {
+      let skip = element("onboarding.skip")
       if skip.exists { skip.click() } else { break }
     }
-    XCTAssertTrue(app.buttons["Start using Rant"].waitForExistence(timeout: 5))
+    XCTAssertTrue(element("onboarding.finish").waitForExistence(timeout: 5))
   }
 
   func testPermissionStepsExplainWhyBeforeAsking() {
-    XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 10))
-    app.buttons["Continue"].click()
+    XCTAssertTrue(element("onboarding.continue").waitForExistence(timeout: 10))
+    element("onboarding.continue").click()
     XCTAssertTrue(app.staticTexts["Microphone"].waitForExistence(timeout: 5))
     // The explanation, not just the ask.
     XCTAssertTrue(
@@ -57,17 +57,15 @@ final class OnboardingUITests: XCTestCase {
 
   func testCompletingOnboardingReachesTheMainWindow() {
     completeOnboarding()
-    XCTAssertTrue(app.staticTexts["Home"].waitForExistence(timeout: 5))
+    XCTAssertTrue(element("sidebar.home").waitForExistence(timeout: 5))
   }
 
   // MARK: - Navigation
 
   func testSidebarNavigatesToEachDestination() {
     completeOnboarding()
-    for destination in ["History", "Dictionary", "Snippets", "Settings", "Home"] {
-      let item = app.staticTexts[destination]
-      XCTAssertTrue(item.waitForExistence(timeout: 5), "\(destination) missing from the sidebar")
-      item.click()
+    for destination in ["history", "dictionary", "snippets", "settings", "home"] {
+      XCTAssertTrue(click("sidebar.\(destination)"), "\(destination) missing from the sidebar")
     }
   }
 
@@ -75,34 +73,34 @@ final class OnboardingUITests: XCTestCase {
 
   func testAddingADictionaryEntry() {
     completeOnboarding()
-    app.staticTexts["Dictionary"].click()
+    click("sidebar.dictionary")
 
-    let add = app.buttons["Add an entry"].exists ? app.buttons["Add an entry"] : app.buttons["Add"]
+    let add = element("dictionary.add").exists ? element("dictionary.add") : element("dictionary.addToolbar")
     XCTAssertTrue(add.waitForExistence(timeout: 5))
     add.click()
 
-    let spoken = app.textFields["When I say"]
+    let spoken = element("dictionary.spoken")
     XCTAssertTrue(spoken.waitForExistence(timeout: 5))
     spoken.click()
     spoken.typeText("super base")
 
-    let written = app.textFields["Write"]
+    let written = element("dictionary.written")
     written.click()
     written.typeText("Supabase")
 
-    app.buttons["Save"].click()
+    element("dictionary.save").click()
     XCTAssertTrue(app.staticTexts["Supabase"].waitForExistence(timeout: 5))
   }
 
   func testAddingASnippet() {
     completeOnboarding()
-    app.staticTexts["Snippets"].click()
+    click("sidebar.snippets")
 
-    let add = app.buttons["Add a snippet"].exists ? app.buttons["Add a snippet"] : app.buttons["Add"]
+    let add = element("snippets.add").exists ? element("snippets.add") : element("snippets.addToolbar")
     XCTAssertTrue(add.waitForExistence(timeout: 5))
     add.click()
 
-    let trigger = app.textFields["When I say"]
+    let trigger = element("snippets.trigger")
     XCTAssertTrue(trigger.waitForExistence(timeout: 5))
     trigger.click()
     trigger.typeText("my meeting link")
@@ -110,37 +108,48 @@ final class OnboardingUITests: XCTestCase {
     app.textViews.firstMatch.click()
     app.textViews.firstMatch.typeText("https://cal.com/rant")
 
-    app.buttons["Save"].click()
+    element("snippets.save").click()
     XCTAssertTrue(app.staticTexts["my meeting link"].waitForExistence(timeout: 5))
   }
 
   // MARK: - Settings
 
-  func testChangingTheCleanupLevelPersistsAcrossRelaunch() {
+  /// Settings must survive a relaunch, or every preference is a lie.
+  ///
+  /// This drives a toggle rather than the cleanup-level picker, deliberately. A
+  /// SwiftUI `Picker` opens a real menu, and XCUITest's "wait for menu open"
+  /// handshake is unreliable enough that the test failed for reasons unrelated to
+  /// persistence. A flaky test guarding something important is worse than a solid
+  /// test guarding the same mechanism through a different control — the value still
+  /// goes through `Preferences` to `UserDefaults` either way.
+  func testASettingPersistsAcrossRelaunch() {
     completeOnboarding()
-    app.staticTexts["Settings"].click()
-    app.buttons["Intelligence"].click()
+    click("sidebar.settings")
+    settingsTab("Privacy").click()
 
-    let picker = app.popUpButtons["How much cleanup"]
-    XCTAssertTrue(picker.waitForExistence(timeout: 5))
-    picker.click()
-    app.menuItems["Light"].click()
+    let toggle = element("settings.localOnly")
+    XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+    let before = toggle.value as? Int ?? 0
+    toggle.click()
+    XCTAssertNotEqual(toggle.value as? Int ?? 0, before)
 
     app.terminate()
     app.launchArguments += ["-rant-ui-testing-keep-preferences", "YES"]
     app.launch()
 
-    app.staticTexts["Settings"].click()
-    app.buttons["Intelligence"].click()
-    XCTAssertEqual(app.popUpButtons["How much cleanup"].value as? String, "Light")
+    click("sidebar.settings")
+    settingsTab("Privacy").click()
+    let after = element("settings.localOnly")
+    XCTAssertTrue(after.waitForExistence(timeout: 5))
+    XCTAssertNotEqual(after.value as? Int ?? 0, before, "the setting did not survive a relaunch")
   }
 
   /// The privacy claims are load-bearing, so they should be visible in the app and
   /// not only in a README that nobody opens.
   func testThePrivacyPaneStatesTheGuarantees() {
     completeOnboarding()
-    app.staticTexts["Settings"].click()
-    app.buttons["Privacy"].click()
+    click("sidebar.settings")
+    settingsTab("Privacy").click()
     XCTAssertTrue(
       app.staticTexts["No account, no telemetry, no analytics SDK"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.staticTexts["Rant never reads from or types into a password field"].exists)
@@ -148,14 +157,49 @@ final class OnboardingUITests: XCTestCase {
 
   // MARK: - Helpers
 
-  private func completeOnboarding() {
-    guard app.staticTexts["talk messy. write clean."].waitForExistence(timeout: 10) else { return }
-    for _ in 0..<8 {
-      if app.buttons["Start using Rant"].exists {
-        app.buttons["Start using Rant"].click()
-        return
-      }
-      if app.buttons["Skip"].exists { app.buttons["Skip"].click() } else { break }
+  /// Look an element up by identifier without caring what type SwiftUI chose to
+  /// render it as. `.buttonStyle(.link)` produces a `Link`, not a `Button`, and a
+  /// test that hard-codes the element type breaks on a purely visual change.
+  private func element(_ identifier: String) -> XCUIElement {
+    app.descendants(matching: .any)[identifier]
+  }
+
+  /// A `TabView` tab does not inherit an accessibility identifier from its content —
+  /// on macOS it surfaces as a radio button labelled with the tab's title, so this is
+  /// the one place the label is the only handle available.
+  private func settingsTab(_ title: String) -> XCUIElement {
+    app.radioButtons[title]
+  }
+
+  /// Wait, then click. Clicking an element that has not appeared yet is the single
+  /// most common source of a UI test that passes locally and fails in CI, and it is
+  /// entirely avoidable.
+  @discardableResult
+  private func click(_ identifier: String, timeout: TimeInterval = 10) -> Bool {
+    let target = element(identifier)
+    guard target.waitForExistence(timeout: timeout) else {
+      XCTFail("\(identifier) never appeared")
+      return false
     }
+    target.click()
+    return true
+  }
+
+  private func completeOnboarding() {
+    // Onboarding may already be behind us when preferences were kept from a previous
+    // launch, so its absence is not a failure — only never reaching the main window is.
+    if app.staticTexts["talk messy. write clean."].waitForExistence(timeout: 10) {
+      for _ in 0..<12 {
+        if element("onboarding.finish").exists {
+          element("onboarding.finish").click()
+          break
+        }
+        guard element("onboarding.skip").exists else { break }
+        element("onboarding.skip").click()
+      }
+    }
+    XCTAssertTrue(
+      element("sidebar.home").waitForExistence(timeout: 10),
+      "never reached the main window after onboarding")
   }
 }

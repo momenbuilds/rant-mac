@@ -21,6 +21,7 @@
 		A22EFA97DFF54ABA1E7706EC /* RecorderOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE3A083F0C8AB11A4EB5D54C /* RecorderOverlay.swift */; };
 		AC10670C7ABAD3149B03365A /* OverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C9A013536872A31BA50407 /* OverlayController.swift */; };
 		D21303E13218D64F499077C4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6215D4531E1063A40D8A2D10 /* OnboardingView.swift */; };
+		E4596EC8C3742F5E142BE208 /* HierarchyDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07CCE46290E3DE647B6B82F2 /* HierarchyDiagnostic.swift */; };
 		E4EAB37F7A8A03B828A929CF /* RantCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9D4E1E13B0E11D5F2A81B7B4 /* RantCore */; };
 		EED0B34A571528E2234D922E /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9DC724C5939BF3ED0FDBAC9 /* HomeView.swift */; };
 		FB2804658A7EB5940E5D4C21 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 689EB884031F20394946F225 /* RootView.swift */; };
@@ -39,6 +40,7 @@
 /* Begin PBXFileReference section */
 		03C9A013536872A31BA50407 /* OverlayController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayController.swift; sourceTree = "<group>"; };
 		04ABBCE9B9DF5C6AA8C79F36 /* DictionaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryView.swift; sourceTree = "<group>"; };
+		07CCE46290E3DE647B6B82F2 /* HierarchyDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HierarchyDiagnostic.swift; sourceTree = "<group>"; };
 		208110D8C3C2F5EEA4BF165F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2D7258A233E69A734D0B12C9 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		2EACEA5AA69091FBBEAF12DC /* RantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RantApp.swift; sourceTree = "<group>"; };
@@ -83,6 +85,7 @@
 		1409472F365C87BF1772C12E /* RantUITests */ = {
 			isa = PBXGroup;
 			children = (
+				07CCE46290E3DE647B6B82F2 /* HierarchyDiagnostic.swift */,
 				A68446C6A9C9C91BA638C19D /* OnboardingUITests.swift */,
 			);
 			path = RantUITests;
@@ -321,6 +324,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E4596EC8C3742F5E142BE208 /* HierarchyDiagnostic.swift in Sources */,
 				003762CF3C377BF32E6FF348 /* OnboardingUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -422,6 +426,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -430,6 +436,7 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.rant.mac.uitests;
+				PRODUCT_NAME = RantUITests;
 				SDKROOT = macosx;
 				TEST_TARGET_NAME = Rant;
 			};
@@ -511,6 +518,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -519,6 +528,7 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.rant.mac.uitests;
+				PRODUCT_NAME = RantUITests;
 				SDKROOT = macosx;
 				TEST_TARGET_NAME = Rant;
 			};

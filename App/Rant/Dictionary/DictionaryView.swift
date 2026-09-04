@@ -27,6 +27,7 @@ struct DictionaryView: View {
           Text("Teach Rant the words it keeps getting wrong — names, brands, jargon. “super base” becomes Supabase, and it applies from the very next dictation.")
         } actions: {
           Button("Add an entry") { newEntry() }
+            .accessibilityIdentifier("dictionary.add")
         }
       } else {
         List {
@@ -42,6 +43,7 @@ struct DictionaryView: View {
     .toolbar {
       ToolbarItem(placement: .primaryAction) {
         Button { newEntry() } label: { Label("Add", systemImage: "plus") }
+          .accessibilityIdentifier("dictionary.addToolbar")
       }
       ToolbarItem {
         Menu {
@@ -153,7 +155,9 @@ struct DictionaryEntryEditor: View {
     Form {
       Section {
         TextField("When I say", text: $entry.spoken)
+          .accessibilityIdentifier("dictionary.spoken")
         TextField("Write", text: $entry.written)
+          .accessibilityIdentifier("dictionary.written")
       } footer: {
         Text("Matched as whole words, so an entry for “sell” will never corrupt the middle of “reseller”.")
           .font(.caption).foregroundStyle(.secondary)
@@ -179,6 +183,7 @@ struct DictionaryEntryEditor: View {
         Spacer()
         Button("Save") { onSave(entry) }
           .buttonStyle(.borderedProminent)
+          .accessibilityIdentifier("dictionary.save")
           .disabled(entry.spoken.trimmingCharacters(in: .whitespaces).isEmpty
             || entry.written.trimmingCharacters(in: .whitespaces).isEmpty)
       }
@@ -205,6 +210,7 @@ struct SnippetsView: View {
           Text("Say a short phrase, get a long one. “my meeting link” becomes your booking URL — and it works in the middle of a longer sentence.")
         } actions: {
           Button("Add a snippet") { editing = nil; showingEditor = true }
+            .accessibilityIdentifier("snippets.add")
         }
       } else {
         List {
@@ -230,6 +236,7 @@ struct SnippetsView: View {
     .toolbar {
       ToolbarItem(placement: .primaryAction) {
         Button { editing = nil; showingEditor = true } label: { Label("Add", systemImage: "plus") }
+          .accessibilityIdentifier("snippets.addToolbar")
       }
     }
     .sheet(isPresented: $showingEditor) {
@@ -265,6 +272,7 @@ struct SnippetEditor: View {
     Form {
       Section {
         TextField("When I say", text: $snippet.trigger)
+          .accessibilityIdentifier("snippets.trigger")
       } footer: {
         Text("A short, distinctive phrase you would not say by accident.")
           .font(.caption).foregroundStyle(.secondary)
@@ -273,6 +281,7 @@ struct SnippetEditor: View {
         TextEditor(text: $snippet.expansion)
           .font(.body.monospaced())
           .frame(minHeight: 120)
+          .accessibilityIdentifier("snippets.expansion")
       }
       Toggle("Enabled", isOn: $snippet.enabled)
     }
@@ -284,6 +293,7 @@ struct SnippetEditor: View {
         Spacer()
         Button("Save") { onSave(snippet) }
           .buttonStyle(.borderedProminent)
+          .accessibilityIdentifier("snippets.save")
           .disabled(snippet.trigger.trimmingCharacters(in: .whitespaces).isEmpty
             || snippet.expansion.isEmpty)
       }

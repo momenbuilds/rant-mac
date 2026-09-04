@@ -326,3 +326,35 @@ final class StoreTests: XCTestCase {
       try database.query("SELECT COUNT(*) FROM meeting_segments") { $0.int(0) }.first, 0)
   }
 }
+
+/// Regression: `words_per_minute` is a REAL column, and reading it through an
+/// integer accessor silently truncated 4.5 to 4.0 on every read. The stored value was
+/// always correct; only the read path was wrong, which is the kind of bug that hides
+/// until someone compares an export against the database.
+extension StoreTests {
+  func testFractionalWordsPerMinuteSurvivesARoundTrip() throws {
+    let database = try Database(url: nil)
+    try Migrations.migrate(database)
+    let store = SQLiteTranscriptStore(database: database)
+
+    // 9 words in 2 minutes is 4.5 wpm — deliberately fractional.
+    let saved = try store.save(
+      Transcript(
+        rawText: "", finalText: "one two three four five six seven eight nine",
+        provider: "test", durationMilliseconds: 120_000))
+    XCTAssertEqual(saved.wordsPerMinute ?? 0, 4.5, accuracy: 0.001)
+
+    let readBack = try XCTUnwrap(try store.transcript(id: saved.id!))
+    XCTAssertEqual(readBack.wordsPerMinute ?? 0, 4.5, accuracy: 0.001,
+                   "fractional wpm was truncated on the way back out")
+  }
+
+  func testATranscriptWithNoWpmReadsBackAsNil() throws {
+    let database = try Database(url: nil)
+    try Migrations.migrate(database)
+    let store = SQLiteTranscriptStore(database: database)
+    let saved = try store.save(
+      Transcript(rawText: "", finalText: "hi", provider: "test", durationMilliseconds: 10))
+    XCTAssertNil(try store.transcript(id: saved.id!)?.wordsPerMinute)
+  }
+}

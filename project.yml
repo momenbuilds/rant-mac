@@ -60,6 +60,17 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.rant.mac.uitests
         TEST_TARGET_NAME: Rant
         GENERATE_INFOPLIST_FILE: YES
+        # Without this the bundle inherits PRODUCT_NAME: Rant from the base settings
+        # and the runner tries to dlopen a binary with the same name as the app,
+        # which fails on a team-ID mismatch under ad-hoc signing.
+        PRODUCT_NAME: RantUITests
+        # The base settings sign everything ad-hoc so contributors without an Apple
+        # Developer account can build. That is wrong for a test bundle: XCTRunner.app
+        # is signed by Apple, and dlopen refuses to map an ad-hoc bundle into it
+        # ("different Team IDs"). Leaving the test bundle unsigned lets the runner
+        # load it.
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_IDENTITY: ""
 
 schemes:
   Rant:

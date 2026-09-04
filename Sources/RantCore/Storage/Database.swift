@@ -225,6 +225,10 @@ public struct Row {
     sqlite3_column_type(statement, index) == SQLITE_NULL ? nil : date(index)
   }
 
+  public func doubleOrNil(_ index: Int32) -> Double? {
+    sqlite3_column_type(statement, index) == SQLITE_NULL ? nil : double(index)
+  }
+
   public func data(_ index: Int32) -> Data {
     guard let pointer = sqlite3_column_blob(statement, index) else { return Data() }
     return Data(bytes: pointer, count: Int(sqlite3_column_bytes(statement, index)))

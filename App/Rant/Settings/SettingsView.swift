@@ -8,11 +8,21 @@ struct SettingsView: View {
 
   var body: some View {
     TabView {
-      GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
-      SpeechSettings().tabItem { Label("Speech", systemImage: "waveform") }
-      IntelligenceSettings().tabItem { Label("Intelligence", systemImage: "wand.and.stars") }
-      PrivacySettings().tabItem { Label("Privacy", systemImage: "hand.raised") }
-      DiagnosticsSettings().tabItem { Label("Diagnostics", systemImage: "stethoscope") }
+      GeneralSettings()
+        .tabItem { Label("General", systemImage: "gearshape") }
+        .accessibilityIdentifier("settings.general")
+      SpeechSettings()
+        .tabItem { Label("Speech", systemImage: "waveform") }
+        .accessibilityIdentifier("settings.speech")
+      IntelligenceSettings()
+        .tabItem { Label("Intelligence", systemImage: "wand.and.stars") }
+        .accessibilityIdentifier("settings.intelligence")
+      PrivacySettings()
+        .tabItem { Label("Privacy", systemImage: "hand.raised") }
+        .accessibilityIdentifier("settings.privacy")
+      DiagnosticsSettings()
+        .tabItem { Label("Diagnostics", systemImage: "stethoscope") }
+        .accessibilityIdentifier("settings.diagnostics")
     }
     .navigationTitle("Settings")
   }
@@ -154,6 +164,7 @@ struct IntelligenceSettings: View {
             Text(level.displayName).tag(level)
           }
         }
+        .accessibilityIdentifier("settings.cleanupLevel")
         Text(preferences.cleanupLevel.summary).font(.caption).foregroundStyle(.secondary)
         Toggle("Do cleanup on this Mac rather than at the provider", isOn: $preferences.preferLocalCleanup)
         Text("Rant's None, Light and Medium cleanup are plain code running on your machine — instant, free, and identical offline. Only High asks a model.")
@@ -206,6 +217,7 @@ struct PrivacySettings: View {
 
       Section("Network") {
         Toggle("Local only — never send audio or text anywhere", isOn: $preferences.localOnly)
+          .accessibilityIdentifier("settings.localOnly")
         Text("With this on, a provider that needs the network is refused outright rather than quietly falling back. You will get an error, not a surprise.")
           .font(.caption).foregroundStyle(.secondary)
       }

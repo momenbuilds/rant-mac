@@ -229,13 +229,21 @@ struct OnboardingView: View {
     HStack {
       if step != .welcome {
         Button("Back") { move(-1) }
+          .accessibilityIdentifier("onboarding.back")
       }
       Spacer()
       // Every step is skippable. Trapping someone in onboarding because they will not
       // grant a permission is how an app becomes uninstallable rather than useful.
       if step != .done {
-        Button("Skip") { move(1) }.buttonStyle(.link)
-        Button("Continue") { move(1) }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+        // Identifiers rather than labels: these are the controls the UI tests drive,
+        // and a test that breaks when a word changes is a test people delete.
+        Button("Skip") { move(1) }
+          .buttonStyle(.link)
+          .accessibilityIdentifier("onboarding.skip")
+        Button("Continue") { move(1) }
+          .buttonStyle(.borderedProminent)
+          .keyboardShortcut(.defaultAction)
+          .accessibilityIdentifier("onboarding.continue")
       } else {
         Button("Start using Rant") {
           preferences.hasCompletedOnboarding = true
@@ -243,6 +251,7 @@ struct OnboardingView: View {
         }
         .buttonStyle(.borderedProminent)
         .keyboardShortcut(.defaultAction)
+        .accessibilityIdentifier("onboarding.finish")
       }
     }
     .padding(Theme.Spacing.medium)

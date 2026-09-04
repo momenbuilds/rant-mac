@@ -116,7 +116,22 @@ else
 fi
 
 # --- 8. UI tests ------------------------------------------------------------------
-skip_check "XCUITest suite" "not written yet — tracked as RANT-065"
+# Onboarding, navigation, CRUD and settings persistence. Global text injection is
+# NOT covered here and never will be — see docs/SMOKE_TEST.md for why.
+check_ui() {
+  bash scripts/ui-test.sh | tail -3
+  return "${PIPESTATUS[0]}"
+}
+if [ "${SKIP_UI_TESTS:-0}" = "1" ]; then
+  skip_check "XCUITest suite" "SKIP_UI_TESTS=1"
+elif command -v xcodebuild >/dev/null 2>&1; then
+  run "XCUITest suite" check_ui
+else
+  skip_check "XCUITest suite" "xcodebuild not available"
+fi
+
+# --- 9. Manual coverage is stated, not pretended -----------------------------------
+skip_check "global text injection" "cannot be honestly automated — see docs/SMOKE_TEST.md"
 
 # --- Summary ----------------------------------------------------------------------
 printf '\033[1mSummary\033[0m\n'
