@@ -193,7 +193,7 @@ final class StreamingTests: XCTestCase {
     XCTAssertEqual(components.path, "/v3/ws")
     XCTAssertEqual(items["sample_rate"], "16000")
     XCTAssertEqual(items["encoding"], "pcm_s16le")
-    XCTAssertEqual(items["speech_model"], "universal-streaming")
+    XCTAssertEqual(items["speech_model"], "universal-streaming-english")
     XCTAssertEqual(items["format_turns"], "true")
   }
 

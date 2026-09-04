@@ -159,6 +159,17 @@ public final class HotkeyEngine: @unchecked Sendable {
       return Unmanaged.passUnretained(event)
     }
 
+    // Rant's own paste, passed straight through.
+    //
+    // The ⌘V it synthesises is posted to the HID tap so that Chromium and Electron
+    // apps accept it, which also makes it indistinguishable from hardware here. For
+    // anyone whose dictation trigger is a Command key, that would mean every paste
+    // started another dictation. The marker rides on the event, so this does not
+    // depend on timing the way an event-suppression window does.
+    if AccessibilityInjector.isRantsOwn(event) {
+      return Unmanaged.passUnretained(event)
+    }
+
     guard lock.withLock({ configuration.enabled }) else { return Unmanaged.passUnretained(event) }
 
     let now = Self.now()
