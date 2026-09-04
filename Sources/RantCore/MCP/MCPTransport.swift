@@ -123,8 +123,10 @@ private actor MCPSocketConnection {
     if !chunk.isEmpty {
       switch framer.append(chunk) {
       case .overflow:
-        send(oversizedReply())
-        close()
+        // The reply has to be flushed before the socket goes: cancelling a
+        // connection with a send still queued drops it, and the client would see a
+        // bare disconnect instead of the reason.
+        sendThenClose(oversizedReply())
         return
       case .messages(let messages):
         for message in messages {
@@ -142,6 +144,24 @@ private actor MCPSocketConnection {
   private func send(_ line: String) {
     guard let data = (line + "\n").data(using: .utf8) else { return }
     connection.send(content: data, completion: .contentProcessed { _ in })
+  }
+
+  /// Sends, then closes once the data has actually been handed to the network.
+  ///
+  /// Cancelling straight after `send` discards anything still queued, so a client
+  /// that broke a rule would see a dropped socket rather than the reason it was
+  /// dropped — which is the difference between a diagnosable error and a mystery.
+  private func sendThenClose(_ line: String) {
+    guard let data = (line + "\n").data(using: .utf8) else {
+      close()
+      return
+    }
+    connection.send(
+      content: data,
+      completion: .contentProcessed { [weak self] _ in
+        guard let self else { return }
+        Task { await self.close() }
+      })
   }
 
   private func close() {
@@ -416,6 +436,8 @@ public struct MCPStdioTransport: Sendable {
     for await chunk in Self.chunks(of: input) {
       switch framer.append(chunk) {
       case .overflow:
+        // Answer, then stop reading this stream. Leaving the loop finishes the
+        // AsyncStream, whose termination handler releases the reading thread.
         write(oversizedReply())
         return
       case .messages(let messages):
@@ -426,17 +448,30 @@ public struct MCPStdioTransport: Sendable {
     }
   }
 
-  /// `FileHandle` reads block, so they happen on a dispatch queue and arrive as a
-  /// stream. Doing the read from the async context instead would park a cooperative
-  /// thread for as long as the client stays quiet.
+  /// The read is a plain blocking `read(2)` on the descriptor rather than
+  /// `FileHandle.read(upToCount:)`: the `FileHandle` variant does not reliably return
+  /// as soon as a pipe has bytes in it, which for a request/response protocol reads
+  /// as the client being ignored. It happens on a dispatch queue because it blocks,
+  /// and parking a cooperative thread for as long as the client stays quiet would
+  /// starve everything else.
   private static func chunks(of input: FileHandle) -> AsyncStream<Data> {
-    AsyncStream { continuation in
+    let descriptor = input.fileDescriptor
+    return AsyncStream { continuation in
       let queue = DispatchQueue(label: "dev.rant.mac.mcp.stdio")
       queue.async {
+        var buffer = [UInt8](repeating: 0, count: 32 * 1024)
         while true {
-          let chunk = (try? input.read(upToCount: 32 * 1024)) ?? Data()
-          if chunk.isEmpty { break }
-          continuation.yield(chunk)
+          let count = buffer.withUnsafeMutableBytes { raw in
+            read(descriptor, raw.baseAddress, raw.count)
+          }
+          if count > 0 {
+            continuation.yield(Data(buffer[0..<count]))
+          } else if count < 0 && errno == EINTR {
+            // A signal interrupted the wait; that is not the client hanging up.
+            continue
+          } else {
+            break
+          }
         }
         continuation.finish()
       }

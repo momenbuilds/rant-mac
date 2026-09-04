@@ -157,7 +157,7 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `swift test --filter ScratchpadTests`
 - [x] RANT-044 — Local MCP server (opt-in, loopback, read-only default, audit log)
   - verify: `swift test --filter MCPTests`
-- [ ] RANT-069 — MCP loopback socket listener + stdio wiring in the app shell
+- [x] RANT-069 — MCP loopback socket listener + stdio wiring in the app shell
   - depends: RANT-044
   - acceptance: the validated `MCPBindAddress` seam is actually bound; `claude mcp add` can reach it
   - verify: `swift test --filter MCPTransportTests`
