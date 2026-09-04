@@ -23,6 +23,12 @@ struct RantApp: App {
         .onReceive(NotificationCenter.default.publisher(for: .rantRetryDictation)) { _ in
           model.retryLast()
         }
+        // Clicking a failed bar brings the app forward on History, where the full
+        // error and whatever text survived the failure can actually be read.
+        .onReceive(NotificationCenter.default.publisher(for: .rantOpenAfterFailure)) { _ in
+          model.destination = "history"
+          NSApp.activate(ignoringOtherApps: true)
+        }
     }
     .defaultSize(width: 1_100, height: 720)
     .windowStyle(.hiddenTitleBar)

@@ -24,8 +24,8 @@
 		57113839F403C1A8FB2312D5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D7258A233E69A734D0B12C9 /* Theme.swift */; };
 		59B48B6BFB65F91DBCCBE64E /* RantApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EACEA5AA69091FBBEAF12DC /* RantApp.swift */; };
 		944196400A209E8C37603FEC /* ScratchpadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A6A68FBF9A2C346F686B20A /* ScratchpadView.swift */; };
+		99E2BA13D8955E282035F535 /* RantBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 964954B9B844B90F23E78783 /* RantBar.swift */; };
 		9C066602804472A46FB51A02 /* MigrateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E56852783E5AB2E108AE2DA /* MigrateView.swift */; };
-		A22EFA97DFF54ABA1E7706EC /* RecorderOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE3A083F0C8AB11A4EB5D54C /* RecorderOverlay.swift */; };
 		AC10670C7ABAD3149B03365A /* OverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C9A013536872A31BA50407 /* OverlayController.swift */; };
 		BFEF7B25ABED0F05EDA6E264 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = DD52C6823BAA8234F22CCF13 /* AppIcon.icns */; };
 		D21303E13218D64F499077C4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6215D4531E1063A40D8A2D10 /* OnboardingView.swift */; };
@@ -70,6 +70,7 @@
 		7BAE54969795EEA8827A1238 /* MCPController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPController.swift; sourceTree = "<group>"; };
 		8BFCA8100153B98BC057D6B3 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		8E56852783E5AB2E108AE2DA /* MigrateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrateView.swift; sourceTree = "<group>"; };
+		964954B9B844B90F23E78783 /* RantBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RantBar.swift; sourceTree = "<group>"; };
 		969AEB044B530E6D7A9D7AAB /* StylesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StylesView.swift; sourceTree = "<group>"; };
 		A6354DBAB43B57FC9FDEDC11 /* Rant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rant.entitlements; sourceTree = "<group>"; };
 		A68446C6A9C9C91BA638C19D /* OnboardingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingUITests.swift; sourceTree = "<group>"; };
@@ -86,7 +87,6 @@
 		E33BE18405DF3FB5FBBD4F8A /* Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Permissions.swift; sourceTree = "<group>"; };
 		E400C51913268E7212C07A0A /* TransformPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformPanel.swift; sourceTree = "<group>"; };
 		E987D1EC752AF8C50C11B9C9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
-		EE3A083F0C8AB11A4EB5D54C /* RecorderOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderOverlay.swift; sourceTree = "<group>"; };
 		F1A9A10E7172019C35A6C864 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -166,7 +166,7 @@
 			isa = PBXGroup;
 			children = (
 				03C9A013536872A31BA50407 /* OverlayController.swift */,
-				EE3A083F0C8AB11A4EB5D54C /* RecorderOverlay.swift */,
+				964954B9B844B90F23E78783 /* RantBar.swift */,
 			);
 			path = Recorder;
 			sourceTree = "<group>";
@@ -414,7 +414,7 @@
 				0E501602B04A182D51754E92 /* Permissions.swift in Sources */,
 				526CFD4D90896934162F4F97 /* Preferences.swift in Sources */,
 				59B48B6BFB65F91DBCCBE64E /* RantApp.swift in Sources */,
-				A22EFA97DFF54ABA1E7706EC /* RecorderOverlay.swift in Sources */,
+				99E2BA13D8955E282035F535 /* RantBar.swift in Sources */,
 				FB2804658A7EB5940E5D4C21 /* RootView.swift in Sources */,
 				944196400A209E8C37603FEC /* ScratchpadView.swift in Sources */,
 				23699843B8661C94990D74C3 /* SettingsView.swift in Sources */,

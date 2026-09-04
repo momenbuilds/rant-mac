@@ -137,6 +137,7 @@ final class AppModel: ObservableObject {
 
     if Self.isDemoingOverlay { startOverlayDemo() }
     if let directory = Self.gifRenderDirectory { renderOverlayFrames(into: directory) }
+    if let directory = Self.barGalleryDirectory { renderBarGallery(into: directory) }
   }
 
   /// Reinstalls the event tap whenever the trigger or activation mode changes.
@@ -162,6 +163,15 @@ final class AppModel: ObservableObject {
     // The chosen microphone was stored in preferences and never handed to the capture,
     // so picking one changed nothing. Applying it here means the next dictation records
     // from the device the user chose.
+    // The recorder reads this when it decides whether a long dictation may grow to
+    // show what is being said.
+    overlay.liveWordsPreference = preferences.liveWords
+    preferences.$liveWords
+      .removeDuplicates()
+      .receive(on: RunLoop.main)
+      .sink { [weak self] value in self?.overlay.liveWordsPreference = value }
+      .store(in: &cancellables)
+
     preferences.$microphoneUniqueID
       .removeDuplicates()
       .receive(on: RunLoop.main)
@@ -197,12 +207,111 @@ final class AppModel: ObservableObject {
   }
 
   /// Where to write rendered frames of the recorder, if asked.
+  /// The demo's flat backdrop, which is wanted for a recording and not for a
+  /// screenshot: the bar's material samples what is behind the window, so covering the
+  /// desktop hides the very thing a visual review is looking at.
+  static var wantsDemoBackdrop: Bool {
+    #if DEBUG
+      isDemoingOverlay && UserDefaults.standard.bool(forKey: "rant-demo-backdrop")
+    #else
+      false
+    #endif
+  }
+
   static var gifRenderDirectory: String? {
     #if DEBUG
       UserDefaults.standard.string(forKey: "rant-render-overlay")
     #else
       nil
     #endif
+  }
+
+  /// Where to write the Rant Bar state gallery, if asked.
+  static var barGalleryDirectory: String? {
+    #if DEBUG
+      UserDefaults.standard.string(forKey: "rant-render-bar-gallery")
+    #else
+      nil
+    #endif
+  }
+
+  /// Draws every state of the Rant Bar to PNG, then exits.
+  ///
+  /// Visual QA needs to *look* at states that are otherwise hard to reach: an error
+  /// requires a failure, hands-free requires a double tap, the expanded state requires
+  /// talking for five seconds, and hover requires a pointer. Driving a real dictation
+  /// to see each one is slow, unreliable and — for the error case — requires breaking
+  /// something on purpose.
+  ///
+  /// `ImageRenderer` draws the same view the app ships, off-screen, so what is
+  /// inspected is what users get, and the output is identical on every run.
+  private func renderBarGallery(into directory: String) {
+    Task { @MainActor in
+      try? FileManager.default.createDirectory(
+        atPath: directory, withIntermediateDirectories: true)
+
+      // A meter shaped like speech rather than noise, so the waveform in the
+      // screenshot is the waveform a person would see.
+      // Three incommensurable rates: a phrase-length swell, a syllable beat and a
+      // little jitter. A single sine reads as a test tone and noise reads as a broken
+      // meter. The timebase is slow enough that the envelope follower does not simply
+      // average it away — a fast synthetic signal produces twelve identical bars,
+      // which says nothing about how the real thing looks.
+      // Written in decibels, because that is the axis the meter maps and the only one
+      // in which "sounds like speech" is a statement about numbers. A syllable beat of
+      // about seven samples rides a slower phrase swell, so the variation lands inside
+      // the window the bars can actually see — the envelope only looks at the last
+      // `barCount * 2` samples, and a pattern slower than that arrives pre-averaged.
+      let speech: [Float] = (0..<40).map { index in
+        let time = Double(index)
+        let phrase = 6.0 * sin(time * 0.13)
+        let syllables = 9.0 * abs(sin(time * 0.45))
+        let decibels = -34.0 + phrase + syllables
+        return Float(pow(10.0, decibels / 20.0))
+      }
+
+      @MainActor func write(
+        _ name: String, state: DictationState, meter: [Float] = [],
+        handsFree: Bool = false, partial: String = "", hover: Bool? = nil,
+        expanded: Bool = false
+      ) {
+        let controller = OverlayController()
+        controller.state = state
+        controller.meter = meter
+        controller.handsFree = handsFree
+        controller.partial = partial
+        if expanded { controller.forceLiveWordsForRendering() }
+        let renderer = ImageRenderer(
+          content: RantBar(controller: controller, forcedHover: hover, staticSurface: true)
+            .frame(width: 340, height: 110)
+            // A mid-grey ground rather than the app's paper: the bar is translucent
+            // and floats over arbitrary content, so a screenshot on a flat white
+            // background would flatter it dishonestly.
+            .background(Color(white: 0.22)))
+        renderer.scale = 2
+        guard let image = renderer.nsImage,
+          let tiff = image.tiffRepresentation,
+          let bitmap = NSBitmapImageRep(data: tiff),
+          let png = bitmap.representation(using: .png, properties: [:])
+        else { return }
+        try? png.write(to: URL(fileURLWithPath: "\(directory)/\(name).png"))
+      }
+
+      write("1-listening", state: .listening, meter: speech)
+      write("2-listening-hover", state: .listening, meter: speech, hover: true)
+      write("3-hands-free", state: .listening, meter: speech, handsFree: true)
+      write(
+        "4-expanded", state: .listening, meter: speech,
+        partial: "so the migration lands Wednesday and I will write it up", expanded: true)
+      write("5-processing", state: .transcribing)
+      write("6-success", state: .success("Inserted"))
+      write("7-error", state: .failure("Could not reach the speech provider", retryable: true))
+      write("8-cancelled", state: .cancelled)
+      write("9-idle", state: .idle)
+
+      print("wrote the Rant Bar gallery to \(directory)")
+      NSApp.terminate(nil)
+    }
   }
 
   /// Renders the recorder to PNG frames and exits.
@@ -224,8 +333,8 @@ final class AppModel: ObservableObject {
         controller.state = state
         controller.meter = meter
         let renderer = ImageRenderer(
-          content: RecorderOverlay(controller: controller)
-            .padding(14)
+          content: RantBar(controller: controller)
+            .frame(width: 320, height: 96)
             .background(Theme.paper))
         renderer.scale = 2
         guard let image = renderer.nsImage,
@@ -639,14 +748,18 @@ final class AppModel: ObservableObject {
     }
     let settings = preferences.dictationSettings
     switch command {
-    case .startRecording:
+    case .startRecording(let kind):
       // Stamped here, at the moment the key press became a decision, so the number
       // the overlay logs is the one the user actually experiences.
       overlay.commandArrivedAt = ContinuousClock.now
+      // The bar shows a padlock when the recording is locked open, so it has to know
+      // which kind this is from the start rather than only after a promotion.
+      overlay.handsFree = (kind == .handsFree)
       Task { await session.start(settings: settings) }
     case .promoteToHandsFree:
-      // The audio already running simply keeps running; only the way it ends changes.
-      break
+      // The audio already running simply keeps running; only the way it ends changes —
+      // and the bar says so.
+      overlay.handsFree = true
     case .stopAndTranscribe:
       Task {
         _ = await session.stopAndTranscribe(settings: settings)

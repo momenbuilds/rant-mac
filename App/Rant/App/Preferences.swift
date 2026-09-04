@@ -62,6 +62,7 @@ final class Preferences: ObservableObject {
     self.mcpEnabled = defaults.bool(forKey: Key.mcpEnabled)
     self.learnFromCorrections = defaults.bool(forKey: Key.learnFromCorrections)
     self.livePreview = defaults.object(forKey: Key.livePreview) as? Bool ?? true
+    self.liveWords = LiveWordsPreference(rawValue: defaults.string(forKey: Key.liveWords) ?? "") ?? .longDictations
   }
 
   private enum Key {
@@ -85,6 +86,7 @@ final class Preferences: ObservableObject {
     static let contextUseScreenOCR = "rant.context.ocr"
     static let excludedBundleIDs = "rant.context.excluded"
     static let livePreview = "rant.speech.livePreview"
+    static let liveWords = "rant.overlay.liveWords"
     static let modeResolver = "rant.modes.resolver"
     static let mcpSettings = "rant.mcp.settings"
     static let learnFromCorrections = "rant.learning.enabled"
@@ -263,6 +265,14 @@ final class Preferences: ObservableObject {
     didSet { defaults.set(livePreview, forKey: Key.livePreview) }
   }
 
+  /// When the recorder may grow to show the words as they arrive.
+  ///
+  /// Long dictations only by default: for a short phrase the bar would expand and
+  /// collapse before anybody read it, which is motion for its own sake.
+  @Published var liveWords: LiveWordsPreference {
+    didSet { defaults.set(liveWords.rawValue, forKey: Key.liveWords) }
+  }
+
   /// Put every setting back to its default.
   ///
   /// Removes the `rant.` keys and reloads, rather than assigning defaults one at a
@@ -302,6 +312,7 @@ final class Preferences: ObservableObject {
     mcpEnabled = false
     learnFromCorrections = false
     livePreview = true
+    liveWords = .longDictations
     objectWillChange.send()
   }
 

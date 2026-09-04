@@ -184,6 +184,25 @@ struct GeneralSettings: View {
         Toggle("Play a sound when recording starts and stops", isOn: $preferences.playSounds)
           .accessibilityIdentifier("settings.playSounds")
       }
+
+      Section("Recording overlay") {
+        Picker("Show live words", selection: $preferences.liveWords) {
+          ForEach(LiveWordsPreference.allCases, id: \.self) { option in
+            Text(option.displayName).tag(option)
+          }
+        }
+        .accessibilityIdentifier("settings.liveWords")
+        Text("The recorder stays small while you talk. On a longer dictation it can widen to show the last few words — useful for checking it heard you, and noise for a short phrase that would expand and collapse before you read it.")
+          .font(.caption).foregroundStyle(.secondary)
+
+        HStack {
+          Button("Reset position") { model.overlay.resetPosition() }
+            .buttonStyle(.quiet)
+          Spacer()
+        }
+        Text("Drag the recorder anywhere; Rant remembers where you put it, relative to the display you are working on.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
     }
     .formStyle(.grouped)
     .onChange(of: preferences.triggerKey) { _, _ in model.installHotkeys() }
