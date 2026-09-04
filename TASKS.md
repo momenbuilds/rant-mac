@@ -196,7 +196,7 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `ls docs/APP_COMPATIBILITY.md docs/SMOKE_TEST.md scripts/smoke-test.sh`
 - [x] RANT-065 — XCUITest suite (onboarding, navigation, CRUD flows)
   - verify: `bash scripts/ui-test.sh`
-- [ ] RANT-066 — Packaging (.dmg / zip, ad-hoc signing, notarization docs)
+- [x] RANT-066 — Packaging (.dmg / zip, ad-hoc signing, notarization docs)
   - verify: `bash scripts/package.sh`
 - [ ] RANT-067 — Accessibility + VoiceOver + Reduce Motion audit
   - verify: manual matrix in docs/ACCESSIBILITY.md
