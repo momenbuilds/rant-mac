@@ -23,7 +23,7 @@ struct RecorderOverlay: View {
     .padding(.horizontal, 15)
     .padding(.vertical, 12)
     .frame(width: 330, height: 72)
-    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.panel))
+    .background(Theme.overlaySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.panel))
     .overlay(
       RoundedRectangle(cornerRadius: Theme.Radius.panel)
         .strokeBorder(Theme.hairlineStrong, lineWidth: 1))

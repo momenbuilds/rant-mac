@@ -75,6 +75,54 @@ final class AppModel: ObservableObject {
       }
     }
     permissions.startWatching()
+
+    if Self.isDemoingOverlay { startOverlayDemo() }
+  }
+
+  /// Drives the overlay through its states on a loop, with a plausible meter.
+  ///
+  /// It exists so the recorder can be recorded: capturing the real thing needs a
+  /// microphone, an API key, granted permissions and good timing, and a demo that
+  /// only works on one machine is a demo that rots. This drives the same views with
+  /// the same animations — only the source of the numbers differs.
+  static var isDemoingOverlay: Bool {
+    UserDefaults.standard.bool(forKey: "rant-demo-overlay")
+  }
+
+  private func startOverlayDemo() {
+    Task { @MainActor in
+      let phrase = "So the migration lands Wednesday, and I will write the notes up after."
+      while !Task.isCancelled {
+        overlay.show(state: .idle)
+        try? await Task.sleep(for: .milliseconds(900))
+
+        overlay.show(state: .listening)
+        // A meter that looks like speech: a slow envelope with syllable-rate detail,
+        // rather than noise, which reads as a broken meter.
+        for tick in 0..<80 {
+          let time = Double(tick) / 11
+          // Three incommensurable rates stacked: a phrase-length swell, a
+          // syllable-rate beat, and a little jitter. Speech looks like this; a single
+          // sine looks like a test tone, and pure noise looks like a broken meter.
+          let phrase = 0.45 + 0.35 * sin(time * 0.55)
+          let syllables = 0.35 + 0.65 * abs(sin(time * 4.3))
+          let jitter = 0.8 + 0.2 * sin(time * 11.7)
+          let level = Float(max(0.004, phrase * syllables * jitter * 0.13))
+          var history = overlay.meter
+          history.append(level)
+          if history.count > 40 { history.removeFirst(history.count - 40) }
+          overlay.updateMeter(history)
+          try? await Task.sleep(for: .milliseconds(45))
+        }
+
+        overlay.show(state: .transcribing)
+        try? await Task.sleep(for: .milliseconds(700))
+        overlay.show(state: .inserting)
+        try? await Task.sleep(for: .milliseconds(320))
+        overlay.show(state: .success(phrase))
+        try? await Task.sleep(for: .milliseconds(1_700))
+      }
+    }
   }
 
   /// True when XCUITest launched us. A UI test must never read or write the
@@ -208,6 +256,9 @@ final class AppModel: ObservableObject {
     let settings = preferences.dictationSettings
     switch command {
     case .startRecording:
+      // Stamped here, at the moment the key press became a decision, so the number
+      // the overlay logs is the one the user actually experiences.
+      overlay.commandArrivedAt = ContinuousClock.now
       Task { await session.start(settings: settings) }
     case .promoteToHandsFree:
       // The audio already running simply keeps running; only the way it ends changes.

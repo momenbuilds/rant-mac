@@ -121,15 +121,7 @@ struct MainWindow: View {
 
   private var wordmark: some View {
     HStack(spacing: 9) {
-      // The mark: three rising strokes, which is a voice getting louder and also the
-      // first thing you see. Drawn rather than an SF Symbol so it is ours.
-      HStack(alignment: .bottom, spacing: 2.5) {
-        ForEach([9.0, 16.0, 12.0], id: \.self) { height in
-          Capsule().fill(Theme.clay).frame(width: 3, height: height)
-        }
-      }
-      .frame(height: 16)
-
+      RantMark(size: 17)
       Text("Rant").font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.ink)
       Spacer()
     }

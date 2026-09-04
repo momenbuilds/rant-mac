@@ -3,8 +3,14 @@ import SwiftUI
 
 /// First run.
 ///
-/// The rule the whole flow follows: never ask for a permission without saying, in the
-/// same breath, what it is for and what happens if you refuse. And never trap anyone —
+/// Two columns, because a single centred paragraph on a 1100-point window is mostly
+/// empty space and reads as unfinished. The left rail carries the brand and the whole
+/// list of steps, so you can see how much is left and what is coming; the right side
+/// carries one thing to do. That shape is what a setup flow is *for* — it answers
+/// "how long is this going to take" before you have to ask.
+///
+/// The rule the flow follows: never ask for a permission without saying, in the same
+/// breath, what it is for and what happens if you refuse. And never trap anyone —
 /// every step is skippable, and every denial has a button that opens the exact System
 /// Settings pane rather than telling you to go and find it.
 struct OnboardingView: View {
@@ -15,59 +21,130 @@ struct OnboardingView: View {
   @State private var apiKey = ""
   @State private var keyMessage: String?
 
-  enum Step: Int, CaseIterable {
+  enum Step: Int, CaseIterable, Identifiable {
     case welcome, microphone, accessibility, trigger, engine, privacy, done
+    var id: Int { rawValue }
+
+    var railTitle: String {
+      switch self {
+      case .welcome: "Welcome"
+      case .microphone: "Microphone"
+      case .accessibility: "Accessibility"
+      case .trigger: "Your key"
+      case .engine: "Speech engine"
+      case .privacy: "Privacy"
+      case .done: "Ready"
+      }
+    }
   }
 
   var body: some View {
-    VStack(spacing: 0) {
-      progressRail
-      ScrollView {
-        VStack {
-          Spacer(minLength: Theme.Spacing.section)
+    HStack(spacing: 0) {
+      rail
+      Divider().overlay(Theme.hairline)
+      VStack(spacing: 0) {
+        ScrollView {
           content
-            .frame(maxWidth: 520, alignment: .leading)
-          Spacer(minLength: Theme.Spacing.section)
+            .frame(maxWidth: 560, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Theme.Spacing.section)
+            .padding(.vertical, Theme.Spacing.section)
         }
-        .frame(minHeight: 420)
-        .padding(.horizontal, Theme.Spacing.page)
+        footer
       }
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
-      footer
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .frame(minWidth: 940, minHeight: 640)
     .background(Theme.paper)
     .onAppear { permissions.refresh() }
   }
 
-  /// Seven dots rather than "Step 3 of 7". It says the same thing in less space and
-  /// shows how much is left without anyone having to do arithmetic.
-  private var progressRail: some View {
-    HStack(spacing: 5) {
-      ForEach(Step.allCases, id: \.rawValue) { item in
-        Capsule()
-          .fill(item.rawValue <= step.rawValue ? Theme.clay : Theme.hairline)
-          .frame(width: item == step ? 20 : 7, height: 4)
-          .animation(Theme.gentle, value: step)
+  // MARK: - Rail
+
+  private var rail: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      HStack(spacing: 10) {
+        RantMark(size: 22)
+        Text("Rant").font(.system(size: 20, weight: .semibold)).foregroundStyle(Theme.ink)
       }
+      .padding(.top, 42)
+      .padding(.horizontal, Theme.Spacing.large)
+
+      Text("talk messy. write clean.")
+        .font(.system(size: 13))
+        .foregroundStyle(Theme.clay)
+        .padding(.horizontal, Theme.Spacing.large)
+        .padding(.top, 6)
+
+      VStack(alignment: .leading, spacing: 1) {
+        ForEach(Step.allCases) { item in
+          railRow(item)
+        }
+      }
+      .padding(.top, Theme.Spacing.section)
+      .padding(.horizontal, Theme.Spacing.small)
+
       Spacer()
+
+      Text("No account. No subscription. No telemetry. Everything stays on this Mac unless you choose otherwise.")
+        .font(.system(size: 11))
+        .foregroundStyle(Theme.inkFaint)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(Theme.Spacing.large)
     }
-    .padding(.horizontal, Theme.Spacing.page)
-    .padding(.top, Theme.Spacing.large)
+    .frame(width: 260)
   }
+
+  private func railRow(_ item: Step) -> some View {
+    let done = item.rawValue < step.rawValue
+    let current = item == step
+    return HStack(spacing: 10) {
+      ZStack {
+        Circle()
+          .fill(done ? Theme.clay : (current ? Theme.claySoft : Color.clear))
+          .frame(width: 18, height: 18)
+        Circle()
+          .strokeBorder(current ? Theme.clay : Theme.hairlineStrong, lineWidth: 1)
+          .frame(width: 18, height: 18)
+          .opacity(done ? 0 : 1)
+        if done {
+          Image(systemName: "checkmark")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(.white)
+        } else if current {
+          Circle().fill(Theme.clay).frame(width: 6, height: 6)
+        }
+      }
+      .accessibilityHidden(true)
+
+      Text(item.railTitle)
+        .font(.system(size: 13, weight: current ? .semibold : .regular))
+        .foregroundStyle(current ? Theme.ink : (done ? Theme.inkMuted : Theme.inkFaint))
+      Spacer(minLength: 0)
+    }
+    .padding(.horizontal, Theme.Spacing.small)
+    .padding(.vertical, 7)
+    .background(
+      current ? Theme.surface : .clear,
+      in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+    .animation(Theme.gentle, value: step)
+  }
+
+  // MARK: - Steps
 
   @ViewBuilder private var content: some View {
     switch step {
     case .welcome:
-      panel(title: "Rant", subtitle: "talk messy. write clean.") {
+      panel(
+        title: "Hold a key. Say what you mean.",
+        subtitle: "Rant turns messy speech into clean writing, wherever your cursor already is."
+      ) {
         VStack(alignment: .leading, spacing: Theme.Spacing.small) {
-          Text("Hold a key, say what you mean — filler words, false starts, corrections and all — let go, and clean text lands where your cursor already was.")
-            .foregroundStyle(Theme.ink)
-          Text("Your voice, your Mac, your data. No account, no subscription, no telemetry.")
-            .foregroundStyle(Theme.inkMuted)
+          feature("waveform", "Filler words, false starts and corrections are cleaned up as you go.")
+          feature("lock.laptopcomputer", "Your transcripts live in one folder on this Mac. Nowhere else.")
+          feature("key", "Your own API key, held in the Keychain — or no key at all, fully offline.")
+          feature("arrow.down.doc", "Bring your history in from Wispr Flow, VoiceInk, Superwhisper or Otter.")
         }
-        .font(.system(size: 14))
-        .fixedSize(horizontal: false, vertical: true)
+        .padding(.top, Theme.Spacing.tight)
       }
 
     case .microphone:
@@ -81,24 +158,27 @@ struct OnboardingView: View {
         grant: { permissions.requestAccessibility() })
 
     case .trigger:
-      panel(title: "Pick your key", subtitle: "Hold it to talk. Let go to insert.") {
+      panel(title: "Pick your key", subtitle: "Hold it to talk. Let go and the text appears.") {
         VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
           Card(padding: 0) {
             VStack(spacing: 0) {
               ForEach(Array(TriggerKey.allCases.enumerated()), id: \.element) { index, key in
                 keyOption(key)
                 if index < TriggerKey.allCases.count - 1 {
-                  Divider().overlay(Theme.hairline).padding(.leading, 44)
+                  Divider().overlay(Theme.hairline).padding(.leading, 46)
                 }
               }
             }
           }
 
-          Picker("Behaviour", selection: $preferences.activationMode) {
-            ForEach(ActivationMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
+          VStack(alignment: .leading, spacing: 6) {
+            Text("BEHAVIOUR").font(Theme.label).tracking(0.7).foregroundStyle(Theme.inkFaint)
+            Picker("", selection: $preferences.activationMode) {
+              ForEach(ActivationMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
           }
-          .labelsHidden()
-          .pickerStyle(.segmented)
 
           Text("These are lone modifiers: they type nothing by themselves, so Rant can use one without taking a shortcut away from you. Press it together with another key and it behaves exactly as it always did.")
             .font(.system(size: 12)).foregroundStyle(Theme.inkMuted)
@@ -146,23 +226,29 @@ struct OnboardingView: View {
 
     case .done:
       panel(title: "That's it", subtitle: "Try it right now.") {
-        VStack(alignment: .leading, spacing: Theme.Spacing.small) {
-          HStack(spacing: 7) {
-            Text("Click into any text field, hold").font(.system(size: 14))
-            KeyCap(text: preferences.triggerKey.displayName)
-            Text("and say something.").font(.system(size: 14))
+        VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+          Card(fill: Theme.claySoft) {
+            HStack(spacing: 8) {
+              Text("Click into the box below, hold")
+                .font(.system(size: 14)).foregroundStyle(Theme.ink)
+              KeyCap(text: preferences.triggerKey.displayName)
+              Text("and say something.")
+                .font(.system(size: 14)).foregroundStyle(Theme.ink)
+              Spacer(minLength: 0)
+            }
           }
-          .foregroundStyle(Theme.ink)
-
-          Text("Escape cancels. Double-tap to keep recording hands-free. Everything else lives in the menu bar.")
-            .font(.system(size: 13)).foregroundStyle(Theme.inkMuted)
-            .fixedSize(horizontal: false, vertical: true)
 
           Card(fill: Theme.sunken) {
             TextField("Try dictating here", text: .constant(""), axis: .vertical)
               .textFieldStyle(.plain)
               .font(.system(size: 13))
               .lineLimit(3, reservesSpace: true)
+          }
+
+          VStack(alignment: .leading, spacing: 6) {
+            hint("Escape cancels without inserting anything.")
+            hint("Double-tap your key to keep recording hands-free.")
+            hint("Everything else lives in the menu bar.")
           }
         }
       }
@@ -175,15 +261,43 @@ struct OnboardingView: View {
     title: String, subtitle: String?, @ViewBuilder content: () -> Content
   ) -> some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
-      VStack(alignment: .leading, spacing: 4) {
-        Text(title).font(.system(size: 30, weight: .semibold)).foregroundStyle(Theme.ink)
+      VStack(alignment: .leading, spacing: 6) {
+        Text(title)
+          .font(.system(size: 27, weight: .semibold))
+          .foregroundStyle(Theme.ink)
+          .fixedSize(horizontal: false, vertical: true)
         if let subtitle {
-          Text(subtitle).font(.system(size: 16)).foregroundStyle(Theme.inkMuted)
+          Text(subtitle)
+            .font(.system(size: 15)).foregroundStyle(Theme.inkMuted)
+            .fixedSize(horizontal: false, vertical: true)
         }
       }
       content()
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private func feature(_ icon: String, _ text: String) -> some View {
+    HStack(alignment: .top, spacing: Theme.Spacing.small) {
+      Image(systemName: icon)
+        .font(.system(size: 13))
+        .foregroundStyle(Theme.clay)
+        .frame(width: 20)
+        .padding(.top, 1)
+        .accessibilityHidden(true)
+      Text(text)
+        .font(.system(size: 13.5)).foregroundStyle(Theme.ink)
+        .fixedSize(horizontal: false, vertical: true)
+      Spacer(minLength: 0)
+    }
+  }
+
+  private func hint(_ text: String) -> some View {
+    HStack(alignment: .top, spacing: 7) {
+      Circle().fill(Theme.inkFaint).frame(width: 3, height: 3).padding(.top, 7)
+        .accessibilityHidden(true)
+      Text(text).font(.system(size: 12.5)).foregroundStyle(Theme.inkMuted)
+    }
   }
 
   private func keyOption(_ key: TriggerKey) -> some View {
@@ -193,7 +307,7 @@ struct OnboardingView: View {
     } label: {
       HStack(spacing: Theme.Spacing.small) {
         Image(systemName: selected ? "largecircle.fill.circle" : "circle")
-          .font(.system(size: 13))
+          .font(.system(size: 14))
           .foregroundStyle(selected ? Theme.clay : Theme.inkFaint)
           .accessibilityHidden(true)
         KeyCap(text: key.displayName)
@@ -245,14 +359,29 @@ struct OnboardingView: View {
     copy: PermissionCopy, status: Permissions.Status, pane: Permissions.Pane,
     grant: @escaping () -> Void
   ) -> some View {
-    panel(title: copy.title, subtitle: copy.required ? "Rant needs this" : "Optional") {
+    panel(title: copy.title, subtitle: copy.required ? "Rant needs this to work" : "Optional") {
       VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
-        Text(copy.why)
-          .font(.system(size: 14)).foregroundStyle(Theme.ink)
-          .fixedSize(horizontal: false, vertical: true)
-        Text(copy.ifDenied)
-          .font(.system(size: 13)).foregroundStyle(Theme.inkMuted)
-          .fixedSize(horizontal: false, vertical: true)
+        Card {
+          VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+            HStack(alignment: .top, spacing: Theme.Spacing.small) {
+              Image(systemName: "questionmark.circle")
+                .font(.system(size: 13)).foregroundStyle(Theme.clay).padding(.top, 1)
+                .accessibilityHidden(true)
+              Text(copy.why)
+                .font(.system(size: 13.5)).foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            Divider().overlay(Theme.hairline)
+            HStack(alignment: .top, spacing: Theme.Spacing.small) {
+              Image(systemName: "hand.raised")
+                .font(.system(size: 13)).foregroundStyle(Theme.inkFaint).padding(.top, 1)
+                .accessibilityHidden(true)
+              Text("If you say no: \(copy.ifDenied)")
+                .font(.system(size: 13)).foregroundStyle(Theme.inkMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+          }
+        }
 
         if status.isGranted {
           Chip(text: "Granted", systemImage: "checkmark", tint: Theme.moss, fill: Theme.mossSoft)
@@ -281,7 +410,7 @@ struct OnboardingView: View {
           .font(.system(size: 14))
           .foregroundStyle(selected ? Theme.clay : Theme.inkFaint)
           .accessibilityHidden(true)
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
           HStack(spacing: Theme.Spacing.tight) {
             Text(title).font(.system(size: 13.5, weight: .medium)).foregroundStyle(Theme.ink)
             PrivacyBadge(level: badge)
@@ -335,7 +464,7 @@ struct OnboardingView: View {
           .font(.system(size: 12))
           .foregroundStyle(Theme.inkMuted)
           .accessibilityIdentifier("onboarding.skip")
-        Button("Continue") { move(1) }
+        Button(step == .welcome ? "Get started" : "Continue") { move(1) }
           .buttonStyle(.clay)
           .keyboardShortcut(.defaultAction)
           .accessibilityIdentifier("onboarding.continue")
@@ -357,6 +486,6 @@ struct OnboardingView: View {
   private func move(_ delta: Int) {
     permissions.refresh()
     let next = max(0, min(Step.allCases.count - 1, step.rawValue + delta))
-    step = Step(rawValue: next) ?? .welcome
+    withAnimation(Theme.gentle) { step = Step(rawValue: next) ?? .welcome }
   }
 }

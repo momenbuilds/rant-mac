@@ -18,9 +18,11 @@ settings:
     # and run. Replace with a Developer ID for distribution; see docs/PACKAGING.md.
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGN_STYLE: Manual
+    # Build for both architectures in Release, so one download runs on an Apple
+    # Silicon Mac and on an Intel one. Debug stays native for build speed.
+    ONLY_ACTIVE_ARCH: YES
     DEVELOPMENT_TEAM: ""
     PRODUCT_NAME: Rant
-    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
 packages:
   RantCore:
@@ -42,6 +44,9 @@ targets:
         CODE_SIGN_ENTITLEMENTS: App/Rant/Rant.entitlements
         COMBINE_HIDPI_IMAGES: YES
       configs:
+        Release:
+          ARCHS: "arm64 x86_64"
+          ONLY_ACTIVE_ARCH: NO
         Debug:
           # A separate identity so a development build sits beside a release build
           # instead of replacing it — and, more importantly, so the two do not fight

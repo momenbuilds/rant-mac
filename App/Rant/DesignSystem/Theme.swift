@@ -21,6 +21,15 @@ enum Theme {
   static let paper = Color(light: .init(hex: 0xFBF8F3), dark: .init(hex: 0x141317))
   /// Cards and raised surfaces.
   static let surface = Color(light: .init(hex: 0xFFFFFF), dark: .init(hex: 0x1C1B21))
+  /// The floating recorder's own surface.
+  ///
+  /// A solid colour rather than a material. A material samples whatever is behind it,
+  /// so the overlay's contrast depended on the wallpaper it happened to be sitting
+  /// over — readable on a dark desktop, washed out on a light one. This is the one
+  /// surface in the app that appears over arbitrary content, so it is the one that
+  /// cannot afford to be translucent.
+  static let overlaySurface = Color(light: .init(hex: 0xFFFFFF), dark: .init(hex: 0x22212A))
+
   /// A slightly recessed fill: input wells, quiet chips, table stripes.
   static let sunken = Color(light: .init(hex: 0xF2EDE5), dark: .init(hex: 0x232228))
 
@@ -321,6 +330,26 @@ extension View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     .background(Theme.paper)
+  }
+}
+
+/// The Rant mark: three rising strokes.
+///
+/// A voice getting louder, and a waveform, and the letter shapes of a bar chart —
+/// deliberately simple enough to read at 16 points in a sidebar and at 1024 as an
+/// application icon, which is the only real constraint on a mark.
+struct RantMark: View {
+  var size: CGFloat = 16
+  var tint: Color = Theme.clay
+
+  var body: some View {
+    HStack(alignment: .bottom, spacing: size * 0.16) {
+      ForEach(Array([0.55, 1.0, 0.75].enumerated()), id: \.offset) { _, scale in
+        Capsule().fill(tint).frame(width: size * 0.19, height: size * scale)
+      }
+    }
+    .frame(width: size, height: size, alignment: .bottom)
+    .accessibilityHidden(true)
   }
 }
 

@@ -23,6 +23,7 @@
 		9C066602804472A46FB51A02 /* MigrateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E56852783E5AB2E108AE2DA /* MigrateView.swift */; };
 		A22EFA97DFF54ABA1E7706EC /* RecorderOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE3A083F0C8AB11A4EB5D54C /* RecorderOverlay.swift */; };
 		AC10670C7ABAD3149B03365A /* OverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C9A013536872A31BA50407 /* OverlayController.swift */; };
+		BFEF7B25ABED0F05EDA6E264 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = DD52C6823BAA8234F22CCF13 /* AppIcon.icns */; };
 		D21303E13218D64F499077C4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6215D4531E1063A40D8A2D10 /* OnboardingView.swift */; };
 		E283586579D98B548A6B4EBF /* TransformsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF41DDD4B08F7F7322244223 /* TransformsView.swift */; };
 		E4596EC8C3742F5E142BE208 /* HierarchyDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07CCE46290E3DE647B6B82F2 /* HierarchyDiagnostic.swift */; };
@@ -67,6 +68,7 @@
 		CF41DDD4B08F7F7322244223 /* TransformsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformsView.swift; sourceTree = "<group>"; };
 		D2FC28547A789BB5867734DB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D86DA3ECF09A2156921FBF81 /* rant-mac */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "rant-mac"; path = .; sourceTree = SOURCE_ROOT; };
+		DD52C6823BAA8234F22CCF13 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		DEE89F48313D3963A85B3C19 /* PageTourTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageTourTests.swift; sourceTree = "<group>"; };
 		E33BE18405DF3FB5FBBD4F8A /* Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Permissions.swift; sourceTree = "<group>"; };
 		E987D1EC752AF8C50C11B9C9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -207,6 +209,7 @@
 				E12AF6E9DB333AE54F130109 /* Scratchpad */,
 				DE86C9D92826507D1169DFB7 /* Settings */,
 				EB08F27EB5FCF494B1E672DE /* Transforms */,
+				DD52C6823BAA8234F22CCF13 /* AppIcon.icns */,
 				D2FC28547A789BB5867734DB /* Info.plist */,
 				A6354DBAB43B57FC9FDEDC11 /* Rant.entitlements */,
 			);
@@ -280,6 +283,7 @@
 			buildConfigurationList = B240B38AB3C8D0E5A02271C1 /* Build configuration list for PBXNativeTarget "Rant" */;
 			buildPhases = (
 				06CC8EDA298C93B3A612BD57 /* Sources */,
+				5281C3080E5457CC1C18C203 /* Resources */,
 				FCA1476F369D76001A1EEAE7 /* Frameworks */,
 			);
 			buildRules = (
@@ -355,6 +359,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		5281C3080E5457CC1C18C203 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BFEF7B25ABED0F05EDA6E264 /* AppIcon.icns in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		06CC8EDA298C93B3A612BD57 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -408,7 +423,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -460,6 +474,7 @@
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = Rant;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -510,7 +525,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -601,6 +615,7 @@
 		EEB825ECFFD0982CB56F32B5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = "arm64 x86_64";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/Rant/Rant.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -609,6 +624,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.rant.mac;
 				SDKROOT = macosx;
 			};
