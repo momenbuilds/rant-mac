@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		003762CF3C377BF32E6FF348 /* OnboardingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A68446C6A9C9C91BA638C19D /* OnboardingUITests.swift */; };
+		02ACBE5314D33848D96A3BE6 /* ActionsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31314344E5A8050033FCC36E /* ActionsController.swift */; };
 		03ECE1743141BB926C962D5D /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD389C3FFFC4CF6441449AAC /* MenuBarContent.swift */; };
 		0B1315D176521B014E19E835 /* DictionaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04ABBCE9B9DF5C6AA8C79F36 /* DictionaryView.swift */; };
 		0E501602B04A182D51754E92 /* Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33BE18405DF3FB5FBBD4F8A /* Permissions.swift */; };
@@ -58,6 +59,7 @@
 		2C11370FD60421D6C967B5CC /* CommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandController.swift; sourceTree = "<group>"; };
 		2D7258A233E69A734D0B12C9 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		2EACEA5AA69091FBBEAF12DC /* RantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RantApp.swift; sourceTree = "<group>"; };
+		31314344E5A8050033FCC36E /* ActionsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionsController.swift; sourceTree = "<group>"; };
 		3CF4049609A6FD0F430BFE21 /* RantUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A6A68FBF9A2C346F686B20A /* ScratchpadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScratchpadView.swift; sourceTree = "<group>"; };
 		5B32F492CF3159CDB36671E7 /* MeetingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingController.swift; sourceTree = "<group>"; };
@@ -259,6 +261,7 @@
 		DE86C9D92826507D1169DFB7 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				31314344E5A8050033FCC36E /* ActionsController.swift */,
 				7BAE54969795EEA8827A1238 /* MCPController.swift */,
 				208110D8C3C2F5EEA4BF165F /* SettingsView.swift */,
 				969AEB044B530E6D7A9D7AAB /* StylesView.swift */,
@@ -393,6 +396,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				02ACBE5314D33848D96A3BE6 /* ActionsController.swift in Sources */,
 				199D9D88F05654F0D4F85EA3 /* AppModel.swift in Sources */,
 				4B7D13BC5A08DB15AADA9CDD /* CommandController.swift in Sources */,
 				0B1315D176521B014E19E835 /* DictionaryView.swift in Sources */,

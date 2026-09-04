@@ -578,6 +578,56 @@ struct IntegrationsSettings: View {
           .font(.caption).foregroundStyle(.secondary)
       }
 
+      // The whole surface of "what a voice can cause", in one list, with the
+      // permission each one carries. The layer was implemented and constructed
+      // nowhere outside its own tests.
+      Section("Actions") {
+        if let actions = model.actions {
+          ForEach(actions.catalogue, id: \.id) { action in
+            HStack(alignment: .firstTextBaseline) {
+              VStack(alignment: .leading, spacing: 2) {
+                Text(action.title).font(.system(size: 12.5))
+                HStack(spacing: 6) {
+                  Chip(text: permissionName(action.permission))
+                  if action.requiresConfirmation {
+                    Chip(text: "asks first", tint: Theme.clay, fill: Theme.claySoft)
+                  }
+                }
+              }
+              Spacer()
+              if action.fields.isEmpty {
+                Button("Run") { actions.run(action, values: [:]) }
+                  .buttonStyle(.quiet)
+              } else {
+                Text(action.fields.map(\.name).joined(separator: ", "))
+                  .font(.caption).foregroundStyle(Theme.inkFaint)
+              }
+            }
+          }
+          if let waiting = actions.pending {
+            VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
+              Text(waiting.summary)
+                .font(.system(size: 12.5)).foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+              HStack {
+                Button("Do it") { actions.confirm(waiting) }.buttonStyle(.clay)
+                Button("Cancel") { actions.cancelPending() }.buttonStyle(.quiet)
+              }
+            }
+            .padding(Theme.Spacing.small)
+            .background(Theme.claySoft, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+          }
+          if let result = actions.lastResult {
+            Text(result).font(.caption).foregroundStyle(Theme.moss)
+          }
+          if let error = actions.lastError {
+            Text(error).font(.caption).foregroundStyle(Theme.live)
+          }
+        }
+        Text("Rant has no unrestricted shell access. Each of these is a registered capability with a fixed input schema and a permission class; anything that reaches past this Mac asks before it runs, and running a program you configure is unavailable until you configure one.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
       Section("Keyboard") {
         LabeledContent(
           "Transform selection",
@@ -591,6 +641,18 @@ struct IntegrationsSettings: View {
       }
     }
     .formStyle(.grouped)
+  }
+}
+
+/// Named for the consequence rather than the enum case: a permission list nobody can
+/// read is a permission list nobody checks.
+private func permissionName(_ permission: ActionPermission) -> String {
+  switch permission {
+  case .textOnly: "writes text"
+  case .clipboard: "uses the clipboard"
+  case .createsLocalData: "saves on this Mac"
+  case .opensURL: "opens a link"
+  case .runsCommand: "runs a program"
   }
 }
 

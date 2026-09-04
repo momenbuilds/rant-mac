@@ -33,6 +33,8 @@ final class AppModel: ObservableObject {
   @Published private(set) var upcomingEvents: [CalendarEvent] = []
   /// Watches for corrections and proposes dictionary rules. Opt-in.
   @Published private(set) var learning: LearningObserver?
+  /// The registered capabilities a voice can cause, and the way to run one.
+  @Published private(set) var actions: ActionsController?
 
   private let calendar = EventKitCalendar()
   @Published private(set) var partialText: String = ""
@@ -104,6 +106,7 @@ final class AppModel: ObservableObject {
     // Starts nothing unless the user has switched it on; `apply` stops as readily as
     // it starts.
     applyMCPSettings()
+    actions = ActionsController(notes: notes)
 
     // The event tap cannot be installed without Accessibility, and Accessibility is
     // granted in another process with no notification. Watching for it means the
