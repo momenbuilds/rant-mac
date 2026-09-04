@@ -17,6 +17,13 @@ import XCTest
 /// paste into Slack sends a message and into Terminal runs a command. A scratch
 /// document in TextEdit can be thrown away.
 ///
+/// This covers the Accessibility path. The clipboard path's keystroke is covered
+/// separately by `PasteKeystrokeTests`; driving it all the way into TextEdit from here
+/// could not be made to work, because reading the document back needs `NSAppleScript`
+/// and a run loop that a command-line test process does not have — the attempt aborted
+/// the whole suite with a malloc error. A test that takes the suite down with it is
+/// worse than an honest gap, so the gap is recorded in `docs/SMOKE_TEST.md`.
+///
 /// Opt-in, because it needs the Accessibility grant and takes over the keyboard for a
 /// moment:
 ///
@@ -46,9 +53,20 @@ final class InjectionSmokeTests: XCTestCase {
     try Data("".utf8).write(to: scratch)
     defer { try? FileManager.default.removeItem(at: scratch) }
 
-    textEdit = try await openInTextEdit(scratch)
-    // Give the window a moment to take focus; the injector writes wherever focus is.
-    try await Task.sleep(for: .seconds(2))
+    let app = try await openInTextEdit(scratch)
+    textEdit = app
+    // Wait for TextEdit to actually be frontmost rather than sleeping and hoping.
+    // Opening a document and *having the window* are different moments, and the
+    // injector writes wherever focus is at the instant it runs.
+    for _ in 0..<40 {
+      app.activate()
+      try await Task.sleep(for: .milliseconds(150))
+      let front = await MainActor.run {
+        NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+      }
+      if front == "com.apple.TextEdit" { break }
+    }
+    try await Task.sleep(for: .milliseconds(400))
 
     // Refuse to inject unless TextEdit is genuinely in front.
     //
