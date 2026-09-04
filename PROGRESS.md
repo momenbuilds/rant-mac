@@ -14,8 +14,8 @@ Work is on `worktree-final-audit`, open as PR #1.
 
 | | |
 |---|---|
-| **`scripts/check.sh`** (CI, run 33906055652) | ✅ **8 passed, 0 failed, 1 skipped** |
-| **Unit tests** | ✅ **814 passing**, 0 failing, 2 skipped (both opt-in) |
+| **`scripts/check.sh`** (CI, run 33914567305) | ✅ **8 passed, 0 failed, 1 skipped** |
+| **Unit tests** | ✅ **825 passing**, 0 failing, 2 skipped (both opt-in) |
 | **UI tests (XCUITest)** | ✅ **9 passing**, 0 failing |
 | **Engine build** | ✅ clean — warnings treated as failures |
 | **App build** | ✅ Debug and Release; Release universal (x86_64 arm64), zero test hooks in the binary |
@@ -60,8 +60,12 @@ path from the interface to the code performing it.
 
 None. `check.sh` is green for every runnable check, and the check is now trustworthy.
 
-Two flaky tests were fixed rather than retried: both had made their outcome a property
-of how loaded the machine was, and both are now deterministic.
+Four tests were fixed rather than retried or relaxed. Three had made their outcome a
+property of how loaded the machine was — an unawaited `Task` recording download
+progress, a 30 ms termination grace, and a fixed sleep waiting on a background pump.
+The fourth, the history-search benchmark, was comparing the indexed path *decoding
+rows* against the scanned path *counting* them and calling the difference a ratio;
+both sides now select the same columns, so the assertion keeps its teeth.
 
 ## Honest skips
 
@@ -87,5 +91,5 @@ of how loaded the machine was, and both are now deterministic.
 
 1. Merge PR #1.
 2. Walk `docs/SMOKE_TEST.md` to fill in the compatibility matrix.
-3. RANT-085 — whisper.cpp behind `WhisperBackend`, for a specific chosen model.
-4. Per-item favourites and tags in history (schema already carries the columns).
+3. RANT-085 — whisper.cpp behind `WhisperBackend`, only if a specific model is
+   wanted. The on-device engine already satisfies the local requirement.
