@@ -45,12 +45,15 @@ final class LivePreviewTests: XCTestCase {
     private let lock = NSLock()
     private(set) var sent = Data()
     private(set) var finishes = 0
+    private var opened = false
+    var isOpen: Bool { lock.withLock { opened } }
 
     init(partials: [String]) { self.partials = partials }
 
     func stream(
       context: TranscriptionContext?, options: TranscriptionOptions
     ) async throws -> TranscriptionStream {
+      lock.withLock { opened = true }
       let (stream, continuation) = AsyncThrowingStream<TranscriptionPartial, Error>
         .makeStream()
       for text in partials {
@@ -88,8 +91,10 @@ final class LivePreviewTests: XCTestCase {
     let session = session(capture: capture, streamer: streamer, transcriber: transcriber)
 
     await session.start()
-    // Long enough for the pump to have taken at least one chunk.
-    try await Task.sleep(for: .milliseconds(700))
+    // Wait for the pump to have actually taken the chunks rather than sleeping for a
+    // duration that happens to be long enough on one machine. A fixed sleep is a test
+    // that passes locally and fails on a loaded CI runner.
+    try await waitUntil { await capture.drains >= chunks.count }
     _ = await session.stopAndTranscribe()
 
     let seen = try XCTUnwrap(transcriber.receivedAudio.first)
@@ -109,7 +114,7 @@ final class LivePreviewTests: XCTestCase {
     let seen = Recorder()
     await session.observePartials { text in seen.add(text) }
     await session.start()
-    try await Task.sleep(for: .milliseconds(300))
+    try await waitUntil { seen.values.contains("so we ship") }
     _ = await session.stopAndTranscribe()
 
     XCTAssertTrue(
@@ -125,7 +130,8 @@ final class LivePreviewTests: XCTestCase {
       capture: capture, streamer: streamer, transcriber: ScriptedTranscriber(raw: ""))
 
     await session.start()
-    try await Task.sleep(for: .milliseconds(100))
+    // The stream has to be open before cancelling proves anything about closing it.
+    try await waitUntil { streamer.isOpen }
     await session.cancel()
     XCTAssertEqual(streamer.finishes, 1)
   }
@@ -145,6 +151,22 @@ final class LivePreviewTests: XCTestCase {
     XCTAssertEqual(seen.pcm.count, remainder.count)
     let drains = await capture.drains
     XCTAssertEqual(drains, 0, "nothing should drain the capture when nothing streams")
+  }
+
+  /// Poll until a condition holds, or fail the test.
+  ///
+  /// Everything here depends on a background pump having run, and how long that takes
+  /// is a property of the machine rather than of the code under test.
+  private func waitUntil(
+    timeout: Duration = .seconds(5), _ condition: @Sendable () async -> Bool,
+    file: StaticString = #filePath, line: UInt = #line
+  ) async throws {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+      if await condition() { return }
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    XCTFail("condition never became true within \(timeout)", file: file, line: line)
   }
 
   private final class Recorder: @unchecked Sendable {
