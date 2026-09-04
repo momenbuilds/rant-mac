@@ -57,6 +57,13 @@ public struct DictationSettings: Equatable, Sendable {
   public var localOnly: Bool
   public var contextSettings: ContextSettings
   public var retainAudio: Bool
+  /// Chooses the writing style from where the user is typing.
+  ///
+  /// Carried as a resolver rather than a resolved instruction because the decision
+  /// depends on the app and site, and those are only known once the context has been
+  /// captured — which happens inside the session, after these settings were built.
+  /// While this was nil the Styles screen had no effect on anything.
+  public var styleResolver: StyleResolver?
 
   public init(
     cleanupLevel: CleanupLevel = .medium,
@@ -65,8 +72,10 @@ public struct DictationSettings: Equatable, Sendable {
     preferLocalCleanup: Bool = false,
     localOnly: Bool = false,
     contextSettings: ContextSettings = .default,
-    retainAudio: Bool = false
+    retainAudio: Bool = false,
+    styleResolver: StyleResolver? = nil
   ) {
+    self.styleResolver = styleResolver
     self.cleanupLevel = cleanupLevel
     self.styleInstruction = styleInstruction
     self.languageCode = languageCode
@@ -225,9 +234,14 @@ public actor DictationSession {
     }
 
     setState(.transcribing)
+    // The style depends on where the user is typing, so it can only be chosen once the
+    // context has been captured — which is here, not when the settings were assembled.
+    // An explicit `styleInstruction` still wins: that is the one-off override.
+    let style = settings.styleInstruction ?? settings.styleResolver?
+      .resolve(context: capturedContext).instructions
     let options = TranscriptionOptions(
       cleanupLevel: settings.cleanupLevel,
-      styleInstruction: settings.styleInstruction,
+      styleInstruction: style,
       languageCode: settings.languageCode,
       allowProviderCleanup: !settings.preferLocalCleanup)
 

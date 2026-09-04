@@ -39,7 +39,7 @@ struct MainWindow: View {
 
   enum Destination: String, CaseIterable, Identifiable {
     case home, history, notetaker, insights
-    case dictionary, snippets, styles, transforms, scratchpad
+    case dictionary, snippets, styles, modes, transforms, scratchpad
     case migrate, settings
     var id: String { rawValue }
 
@@ -52,6 +52,7 @@ struct MainWindow: View {
       case .dictionary: "Dictionary"
       case .snippets: "Snippets"
       case .styles: "Styles"
+      case .modes: "Modes"
       case .transforms: "Transforms"
       case .scratchpad: "Scratchpad"
       case .migrate: "Migrate"
@@ -68,6 +69,7 @@ struct MainWindow: View {
       case .dictionary: "character.book.closed"
       case .snippets: "text.append"
       case .styles: "paintbrush.pointed"
+      case .modes: "slider.horizontal.3"
       case .transforms: "wand.and.sparkles"
       case .scratchpad: "note.text"
       case .migrate: "arrow.down.doc"
@@ -79,7 +81,7 @@ struct MainWindow: View {
     /// own. A flat list of eleven items is a list you have to read every time.
     static let groups: [(String?, [Destination])] = [
       (nil, [.home, .history, .notetaker, .insights]),
-      ("Your voice", [.dictionary, .snippets, .styles, .transforms, .scratchpad]),
+      ("Your voice", [.dictionary, .snippets, .styles, .modes, .transforms, .scratchpad]),
       ("Your data", [.migrate, .settings]),
     ]
   }
@@ -226,6 +228,7 @@ struct MainWindow: View {
     case .dictionary: DictionaryView()
     case .snippets: SnippetsView()
     case .styles: StylesView()
+    case .modes: ModesView()
     case .transforms: TransformsView()
     case .scratchpad: ScratchpadView()
     case .migrate: MigrateView()

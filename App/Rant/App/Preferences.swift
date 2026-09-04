@@ -76,6 +76,8 @@ final class Preferences: ObservableObject {
     static let contextUseClipboard = "rant.context.clipboard"
     static let contextUseScreenOCR = "rant.context.ocr"
     static let excludedBundleIDs = "rant.context.excluded"
+    static let styleResolver = "rant.styles.resolver"
+    static let customStyles = "rant.styles.custom"
     static let enhancementProvider = "rant.enhance.provider"
     static let ollamaEndpoint = "rant.enhance.ollamaEndpoint"
     static let ollamaModel = "rant.enhance.ollamaModel"
@@ -142,8 +144,54 @@ final class Preferences: ObservableObject {
       preferLocalCleanup: preferLocalCleanup,
       localOnly: localOnly,
       contextSettings: contextSettings,
-      retainAudio: retainAudio)
+      retainAudio: retainAudio,
+      styleResolver: styleResolver)
   }
+
+  /// How a writing style is chosen, persisted as JSON.
+  ///
+  /// The Styles screen was a browsable list of instructions that nothing consulted:
+  /// `dictationSettings` never set a style, so `styleInstruction` was always nil and
+  /// every dictation used the provider's default voice regardless of what the screen
+  /// showed. Storing the resolver — with the per-app, per-site and per-category rules
+  /// — is what makes the screen describe something real.
+  var styleResolver: StyleResolver {
+    get {
+      guard let data = defaults.data(forKey: Key.styleResolver),
+        var stored = try? JSONDecoder().decode(StyleResolver.self, from: data)
+      else { return StyleResolver(available: allStyles) }
+      // The built-ins can change between releases; the user's rules are what persist.
+      stored.available = allStyles
+      // A session override is by definition for one dictation, so it never survives
+      // a relaunch even if one was somehow written.
+      stored.sessionOverride = nil
+      return stored
+    }
+    set {
+      var toStore = newValue
+      toStore.available = customStyles
+      guard let data = try? JSONEncoder().encode(toStore) else { return }
+      defaults.set(data, forKey: Key.styleResolver)
+      objectWillChange.send()
+    }
+  }
+
+  /// Styles the user wrote, on top of the built-ins.
+  var customStyles: [WritingStyle] {
+    get {
+      guard let data = defaults.data(forKey: Key.customStyles),
+        let styles = try? JSONDecoder().decode([WritingStyle].self, from: data)
+      else { return [] }
+      return styles
+    }
+    set {
+      guard let data = try? JSONEncoder().encode(newValue) else { return }
+      defaults.set(data, forKey: Key.customStyles)
+      objectWillChange.send()
+    }
+  }
+
+  var allStyles: [WritingStyle] { WritingStyle.builtIns + customStyles }
 
   var hotkeyConfiguration: HotkeyEngine.Configuration {
     HotkeyEngine.Configuration(trigger: triggerKey, mode: activationMode)
