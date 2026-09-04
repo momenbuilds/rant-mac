@@ -67,6 +67,8 @@ struct MainWindow: View {
         switch selection {
         case .home: HomeView()
         case .history: HistoryView()
+        case .dictionary: DictionaryView()
+        case .snippets: SnippetsView()
         case .settings: SettingsView()
         default: ComingSoonView(destination: selection)
         }

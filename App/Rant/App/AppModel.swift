@@ -26,6 +26,7 @@ final class AppModel: ObservableObject {
 
   private var database: Database?
   private(set) var store: SQLiteTranscriptStore?
+  private(set) var vocabulary: VocabularyStore?
   private var session: DictationSession?
   private var hotkeys: HotkeyEngine?
   private let microphone = MicrophoneCapture()
@@ -64,6 +65,7 @@ final class AppModel: ObservableObject {
       try Migrations.migrate(database)
       self.database = database
       self.store = SQLiteTranscriptStore(database: database)
+      self.vocabulary = VocabularyStore(database: database)
       log.info("database ready at schema \(database.userVersion)")
     } catch {
       log.error("could not open the database: \(error.localizedDescription)")
@@ -89,9 +91,13 @@ final class AppModel: ObservableObject {
     // in hand.
     let continuity = recentTranscripts.prefix(3).map(\.finalText).reversed()
     let recent = Array(continuity)
+    // The dictionary's key terms bias the recogniser toward the spellings the user
+    // has already told us they want, which is far cheaper than correcting them
+    // afterwards.
+    let terms = (try? vocabulary?.keyTerms()) ?? []
     let context = AccessibilityContextProvider(
       recentDictations: { recent },
-      keyTerms: { [] })
+      keyTerms: { terms })
 
     session = DictationSession(
       audio: microphone,
@@ -99,7 +105,8 @@ final class AppModel: ObservableObject {
       injector: AccessibilityInjector(),
       context: context,
       store: store,
-      enhancer: makeEnhancementProvider())
+      enhancer: makeEnhancementProvider(),
+      vocabulary: (try? vocabulary?.makeApplier()) ?? VocabularyApplier())
 
     let newSession = session
     let relay = StateRelay(model: self)
@@ -208,6 +215,46 @@ final class AppModel: ObservableObject {
 
   func retryLast() {
     Task { _ = await session?.retryLast(settings: preferences.dictationSettings) }
+  }
+
+  /// Rebuilds the pipeline so a dictionary or snippet edit applies to the very next
+  /// dictation rather than the next launch.
+  func rebuildVocabulary() {
+    buildSession()
+  }
+
+  // MARK: - Import and export
+
+  /// Writes a value out as pretty JSON through a save panel. Plain JSON, because a
+  /// personal dictionary you cannot take with you is a personal dictionary you have
+  /// rented.
+  func exportJSON<T: Encodable>(_ value: T, suggestedName: String) {
+    let panel = NSSavePanel()
+    panel.nameFieldStringValue = suggestedName
+    panel.allowedContentTypes = [.json]
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    do {
+      let encoder = JSONEncoder()
+      encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+      encoder.dateEncodingStrategy = .iso8601
+      try encoder.encode(value).write(to: url)
+    } catch {
+      lastError = "Could not export: \(error.localizedDescription)"
+    }
+  }
+
+  func importJSON<T: Decodable>(_ type: T.Type, completion: (T) -> Void) {
+    let panel = NSOpenPanel()
+    panel.allowedContentTypes = [.json]
+    panel.allowsMultipleSelection = false
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    do {
+      let decoder = JSONDecoder()
+      decoder.dateDecodingStrategy = .iso8601
+      completion(try decoder.decode(type, from: Data(contentsOf: url)))
+    } catch {
+      lastError = "Could not read that file: \(error.localizedDescription)"
+    }
   }
 
   // MARK: - History

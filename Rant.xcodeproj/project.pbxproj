@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		03ECE1743141BB926C962D5D /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD389C3FFFC4CF6441449AAC /* MenuBarContent.swift */; };
+		0B1315D176521B014E19E835 /* DictionaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04ABBCE9B9DF5C6AA8C79F36 /* DictionaryView.swift */; };
 		0E501602B04A182D51754E92 /* Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33BE18405DF3FB5FBBD4F8A /* Permissions.swift */; };
 		199D9D88F05654F0D4F85EA3 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E987D1EC752AF8C50C11B9C9 /* AppModel.swift */; };
 		20E8D6BAE987C56241101CBA /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BFCA8100153B98BC057D6B3 /* HistoryView.swift */; };
@@ -25,6 +26,7 @@
 
 /* Begin PBXFileReference section */
 		03C9A013536872A31BA50407 /* OverlayController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayController.swift; sourceTree = "<group>"; };
+		04ABBCE9B9DF5C6AA8C79F36 /* DictionaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryView.swift; sourceTree = "<group>"; };
 		208110D8C3C2F5EEA4BF165F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2D7258A233E69A734D0B12C9 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		2EACEA5AA69091FBBEAF12DC /* RantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RantApp.swift; sourceTree = "<group>"; };
@@ -88,6 +90,14 @@
 			);
 			sourceTree = "<group>";
 		};
+		4D4D695CC6F424F64CD9F165 /* Dictionary */ = {
+			isa = PBXGroup;
+			children = (
+				04ABBCE9B9DF5C6AA8C79F36 /* DictionaryView.swift */,
+			);
+			path = Dictionary;
+			sourceTree = "<group>";
+		};
 		528D7E42C7CA060179D16BFB /* Recorder */ = {
 			isa = PBXGroup;
 			children = (
@@ -130,6 +140,7 @@
 			children = (
 				8563FCB9172FEE11ED67A901 /* App */,
 				AE6FE28CBFD2D26D8AEE98FA /* DesignSystem */,
+				4D4D695CC6F424F64CD9F165 /* Dictionary */,
 				2A8981B9169DC897B16B548E /* History */,
 				0D15106656F18851BCC5DAB7 /* Home */,
 				6AA996B2AFDAC75A60AD3D11 /* MenuBar */,
@@ -239,6 +250,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				199D9D88F05654F0D4F85EA3 /* AppModel.swift in Sources */,
+				0B1315D176521B014E19E835 /* DictionaryView.swift in Sources */,
 				20E8D6BAE987C56241101CBA /* HistoryView.swift in Sources */,
 				EED0B34A571528E2234D922E /* HomeView.swift in Sources */,
 				03ECE1743141BB926C962D5D /* MenuBarContent.swift in Sources */,
