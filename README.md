@@ -68,8 +68,9 @@ certificate exists.
 
 1. **Microphone** and **Accessibility** — Rant explains what each is for before asking,
    and every step can be skipped.
-2. **A speech engine** — paste your own AssemblyAI key, or choose *Local only* and stay
-   entirely offline.
+2. **A speech engine** — paste your own AssemblyAI key. (*Local only* mode refuses to
+   send anything to the network, but the offline speech model is not wired up yet —
+   see below.)
 3. **Hold your key and talk.**
 
 > If Accessibility looks switched on but Rant says it is not, macOS is holding an
@@ -88,7 +89,7 @@ were free.
 | **Native** | Swift, SwiftUI and AppKit. Not Electron wearing a traffic-light hat. |
 | **Local-first** | Everything you say, everything you keep, and everything Rant learns lives in one folder on your Mac. |
 | **Bring your own key** | AssemblyAI by default, on your account, held in the Keychain. |
-| **Genuinely offline** | A local speech provider, and a *local only* mode with no silent cloud fallback. |
+| **Local-only means local-only** | Switch it on and a provider that needs the network is refused outright rather than quietly falling back. *(The offline speech model itself is not finished — see [Not done yet](#not-done-yet).)* |
 | **Yours to leave** | Export a portable archive any time — and import your history *in* from Wispr Flow, VoiceInk, Superwhisper or Otter. |
 
 ## What it does
@@ -105,6 +106,23 @@ were free.
 | **History & insights** | Every dictation searchable locally. Words, WPM, streaks. Delete one item or all of them, obviously and immediately. |
 | **Local MCP server** | Opt-in, loopback-only, read-only by default. Lets Claude Code and other agents search your own dictation history. |
 | **Migration Center** | Adapters for four competitors and seven generic formats. Dry-run preview, never touches the source, idempotent. |
+
+## Not done yet
+
+Stated plainly rather than left for you to discover:
+
+- **Offline transcription does not work.** The provider, the model catalogue with its
+  sizes and memory requirements, the download and verification, the local-only refusal
+  — all built and tested. What is missing is the whisper.cpp C binding underneath, so
+  selecting a local model throws `modelUnavailable`. It never silently falls back to
+  the network. Tracked as RANT-062 in `TASKS.md`.
+- **No notarised download.** Ad-hoc or self-signed builds are refused by Gatekeeper on
+  other machines, which is why `install.sh` builds from source.
+- **No auto-updater.** One that cannot verify signatures is a remote code execution
+  feature.
+- **The VoiceOver pass has not been done by a person.** The static audit fixed what a
+  static audit can find; whether the announcements are comprehensible is a different
+  question.
 
 ## Privacy in one paragraph
 

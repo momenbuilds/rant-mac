@@ -12,6 +12,7 @@ import XCTest
 /// What is worth automating is everything else: that onboarding renders and can be
 /// completed, that the sidebar navigates, that settings persist, and that the CRUD
 /// screens actually create things.
+@MainActor
 final class OnboardingUITests: XCTestCase {
 
   private var app: XCUIApplication!

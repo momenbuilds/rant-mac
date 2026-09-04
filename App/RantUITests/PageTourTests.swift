@@ -7,6 +7,7 @@ import XCTest
 /// clicking through eleven screens by hand after every change is how a screen quietly
 /// stops being looked at. It fails loudly if a page does not open at all, which is the
 /// part that *can* be automated.
+@MainActor
 final class PageTourTests: XCTestCase {
 
   private static let outputDirectory = "/tmp/rant-tour"

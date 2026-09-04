@@ -65,14 +65,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Rant is MIT; VoiceInk is GPLv3. Copying in that direction is not permitted,
-      # so a reference to it appearing inside the engine is worth a human look.
-      # See docs/DECISIONS.md D-001.
-      - name: No GPL-derived code in Sources/
+      # Rant is MIT; VoiceInk is GPLv3. Copying in that direction is not permitted.
+      #
+      # This used to grep for the *name*, which could never pass: `VoiceInkAdapter` is
+      # a legitimate class that reads VoiceInk's exports, and the Migration screen
+      # names the product in its own copy. A name is not evidence of copied code, and
+      # a check that cannot pass is a check people delete.
+      #
+      # What a grep can honestly detect is a copied licence header — which is what
+      # actually travels with copied GPL source — and whether the boundary is still
+      # documented. See docs/DECISIONS.md D-001.
+      - name: No GPL-licensed source in the tree
         run: |
-          if grep -rniE 'voiceink|beingpax' Sources/ App/ 2>/dev/null; then
-            echo "A VoiceInk reference appeared in source. Rant is MIT and VoiceInk is"
-            echo "GPLv3 — behaviour may be studied, code may not be copied."
+          if grep -rniE 'GNU General Public License|GPL-3\.0|gplv3' Sources/ App/ 2>/dev/null; then
+            echo "A GPL licence header appeared in source. Rant is MIT; GPLv3 code"
+            echo "cannot be copied into it — behaviour may be studied, code may not."
             exit 1
           fi
+          grep -q 'VoiceInk' THIRD_PARTY_NOTICES.md || {
+            echo "THIRD_PARTY_NOTICES.md no longer records the VoiceInk boundary."
+            exit 1
+          }
           echo "clean"
