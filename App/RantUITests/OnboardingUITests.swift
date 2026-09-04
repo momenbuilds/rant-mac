@@ -136,11 +136,12 @@ final class OnboardingUITests: XCTestCase {
     click("sidebar.settings")
     settingsTab("Privacy").click()
 
-    let toggle = element("settings.localOnly")
+    let toggle = switchElement("settings.localOnly")
     XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-    let before = toggle.value as? Int ?? 0
+    XCTAssertTrue(toggle.isHittable, "the privacy toggle exists but cannot be clicked")
+    let before = isOn(toggle)
     toggle.click()
-    XCTAssertNotEqual(toggle.value as? Int ?? 0, before)
+    XCTAssertNotEqual(isOn(toggle), before, "clicking the toggle did not change it")
 
     app.terminate()
     app.launchArguments += ["-rant-ui-testing-keep-preferences", "YES"]
@@ -148,9 +149,9 @@ final class OnboardingUITests: XCTestCase {
 
     click("sidebar.settings")
     settingsTab("Privacy").click()
-    let after = element("settings.localOnly")
+    let after = switchElement("settings.localOnly")
     XCTAssertTrue(after.waitForExistence(timeout: 5))
-    XCTAssertNotEqual(after.value as? Int ?? 0, before, "the setting did not survive a relaunch")
+    XCTAssertNotEqual(isOn(after), before, "the setting did not survive a relaunch")
   }
 
   /// The privacy claims are load-bearing, so they should be visible in the app and
@@ -171,6 +172,37 @@ final class OnboardingUITests: XCTestCase {
   /// test that hard-codes the element type breaks on a purely visual change.
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any)[identifier]
+  }
+
+  /// Resolve a toggle to the control itself rather than to whatever wraps it.
+  ///
+  /// `descendants(matching: .any)` returns the first node carrying the identifier,
+  /// and SwiftUI does not guarantee that is the switch — a containing group can carry
+  /// it too, and a group has no `value`, so the test reads every state as "off" and
+  /// compares nothing to nothing. Ask for the switch (macOS may render it as a
+  /// checkbox), and fall back only if neither exists.
+  private func switchElement(_ identifier: String) -> XCUIElement {
+    let asSwitch = app.switches[identifier]
+    if asSwitch.exists { return asSwitch }
+    let asCheckBox = app.checkBoxes[identifier]
+    if asCheckBox.exists { return asCheckBox }
+    return element(identifier)
+  }
+
+  /// Read a toggle's on/off state without depending on how it bridges.
+  ///
+  /// `XCUIElement.value` is `Any?`, and the concrete type is not contractual: the
+  /// same switch arrives as an `Int` under one Xcode and as the string "0"/"1" under
+  /// another. `value as? Int ?? 0` therefore quietly reports "off" for every state on
+  /// the toolchain where it bridges as a string, which is exactly how this test passed
+  /// locally and failed in CI.
+  private func isOn(_ element: XCUIElement) -> Bool {
+    switch element.value {
+    case let flag as Bool: return flag
+    case let number as NSNumber: return number.boolValue
+    case let text as String: return ["1", "true", "on"].contains(text.lowercased())
+    default: return false
+    }
   }
 
   /// A `TabView` tab does not inherit an accessibility identifier from its content —
