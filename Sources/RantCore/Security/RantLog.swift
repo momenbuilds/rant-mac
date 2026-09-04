@@ -44,9 +44,11 @@ public struct RantLog: Sendable {
     let line = "\(stamp) [\(level)] \(category): \(message)\n"
     fileLock.lock()
     defer { fileLock.unlock() }
+    // Best effort throughout: a diagnostic log that can fail a dictation would be
+    // worse than no diagnostic log.
     if let handle = try? FileHandle(forWritingTo: fileURL) {
       defer { try? handle.close() }
-      try? handle.seekToEnd()
+      _ = try? handle.seekToEnd()
       try? handle.write(contentsOf: Data(line.utf8))
     } else {
       try? Data(line.utf8).write(to: fileURL)

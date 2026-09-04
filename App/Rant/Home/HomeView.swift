@@ -53,9 +53,14 @@ struct HomeView: View {
             .font(.system(size: 12))
             .foregroundStyle(Theme.clay)
             .accessibilityHidden(true)
-          Text("Rant is not ready yet")
+          Text(remaining == 1 ? "One switch left" : "Rant is not ready yet")
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(Theme.ink)
+          Spacer()
+          if remaining == 1 {
+            Text("takes 3 seconds")
+              .font(.system(size: 11)).foregroundStyle(Theme.inkMuted)
+          }
         }
 
         if !permissions.microphone.isGranted {
@@ -71,6 +76,13 @@ struct HomeView: View {
         }
       }
     }
+  }
+
+  /// How many of the two required permissions are still missing. Saying "one switch
+  /// left" is a materially different message from "not ready yet" — the first is a
+  /// task, the second is a verdict.
+  private var remaining: Int {
+    (permissions.microphone.isGranted ? 0 : 1) + (permissions.accessibility.isGranted ? 0 : 1)
   }
 
   private func permissionRow(
