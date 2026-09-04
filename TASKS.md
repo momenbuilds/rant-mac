@@ -129,7 +129,7 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `swift test --filter StyleTests`
 - [x] RANT-026 — Modes (provider/prompt/context/output/triggers)
   - verify: `swift test --filter ModeTests`
-- [ ] RANT-027 — Adaptive learning from corrections (opt-in)
+- [x] RANT-027 — Adaptive learning from corrections (opt-in)
   - verify: `swift test --filter LearningTests`
 
 ## Phase D — Ownership
@@ -166,7 +166,7 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
 
 - [x] RANT-045 — Actions layer (registered capabilities, permission classes, confirmation)
   - verify: `swift test --filter ActionsTests`
-- [ ] RANT-046 — Local semantic search (embeddings, opt-in)
+- [x] RANT-046 — Local semantic search (embeddings, opt-in)
   - verify: `swift test --filter SemanticSearchTests`
 
 ## Phase F — Notetaker
@@ -198,7 +198,7 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `bash scripts/ui-test.sh`
 - [x] RANT-066 — Packaging (.dmg / zip, ad-hoc signing, notarization docs)
   - verify: `bash scripts/package.sh`
-- [ ] RANT-067 — Accessibility + VoiceOver + Reduce Motion audit
+- [x] RANT-067 — Accessibility + VoiceOver + Reduce Motion audit
   - verify: manual matrix in docs/ACCESSIBILITY.md
 - [x] RANT-068 — Performance instrumentation vs targets in docs/PERFORMANCE.md
   - verify: `swift test --filter PerformanceTests`
