@@ -138,7 +138,9 @@ final class OnboardingUITests: XCTestCase {
 
     let toggle = switchElement("settings.localOnly")
     XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-    XCTAssertTrue(toggle.isHittable, "the privacy toggle exists but cannot be clicked")
+    XCTAssertTrue(
+      scrollIntoView(toggle),
+      "the privacy toggle exists but could not be brought on screen")
     let before = isOn(toggle)
     toggle.click()
     XCTAssertTrue(
@@ -153,6 +155,7 @@ final class OnboardingUITests: XCTestCase {
     settingsTab("Privacy").click()
     let after = switchElement("settings.localOnly")
     XCTAssertTrue(after.waitForExistence(timeout: 5))
+    XCTAssertTrue(scrollIntoView(after), "the toggle could not be brought back on screen")
     XCTAssertTrue(
       waitForState(after, toDifferFrom: before),
       "the setting did not survive a relaunch — \(describe(after))")
@@ -216,6 +219,25 @@ final class OnboardingUITests: XCTestCase {
   /// toggle that reports "off" because the setting did not persist.
   private func describe(_ element: XCUIElement) -> String {
     "elementType=\(element.elementType.rawValue) value=\(String(describing: element.value))"
+  }
+
+  /// Bring an element on screen, scrolling the form if it is below the fold.
+  ///
+  /// A settings pane is a scrolling form, so whether a given control is hittable
+  /// depends on how much sits above it — which changes whenever a section is added.
+  /// This test failed exactly that way once the pane picker grew from five tabs to
+  /// eight. Asserting `isHittable` and giving up made the test a tripwire for layout
+  /// rather than for persistence, which is not what it is for.
+  @discardableResult
+  private func scrollIntoView(_ element: XCUIElement, attempts: Int = 8) -> Bool {
+    if element.isHittable { return true }
+    let form = app.scrollViews.firstMatch
+    guard form.exists else { return element.isHittable }
+    for _ in 0..<attempts {
+      form.scroll(byDeltaX: 0, deltaY: -60)
+      if element.isHittable { return true }
+    }
+    return element.isHittable
   }
 
   /// Read a toggle's on/off state without depending on how it bridges.

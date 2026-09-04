@@ -34,7 +34,24 @@ Before anything is placed in `conversation_context` it passes through
 `SecretRedactor`, which replaces credential-shaped strings (API keys, bearer
 tokens, private key blocks, long random hex/base64 runs) with `[redacted]`.
 
-## Speech, when the Local provider is selected
+## Speech, when the on-device engine is selected
+
+**No network request, and nothing to download.** `AppleSpeechProvider` uses the
+recogniser already present in macOS with `requiresOnDeviceRecognition` set, and the
+provider checks that the recogniser genuinely supports on-device work for the language
+before handing it any audio.
+
+The important part is what happens when it does not: the request is **refused**. The
+`Speech` framework would otherwise satisfy it over Apple's servers, and doing that
+while the UI says "Audio stays on this Mac" would be a lie told by the app rather than
+a limitation of the platform. You get
+`onDeviceRecognitionUnavailable` instead, naming the language.
+
+This engine holds no transport of any kind, which is the same reasoning
+`LocalWhisperProvider` was written with: "makes no network request" is a claim best
+kept by having nothing present that *could* make one.
+
+## Speech, when a downloaded local model is selected
 
 **No network request.** Audio does not leave the machine. Selecting "Local only"
 disables cloud fallback entirely — a provider failure surfaces as an error rather
@@ -67,6 +84,34 @@ provider makes no network requests at all.
 The last row is the only case where a remote party other than your chosen speech
 provider sees your text. The UI labels it as such at the point of selection, not in
 a help article.
+
+## Listening, rather than sending: the local MCP server
+
+Off by default. When you switch it on in Settings → Integrations, Rant opens a socket
+so local MCP clients — Claude Code, Cursor, anything that speaks the protocol — can
+query the data you have exposed.
+
+| | |
+|---|---|
+| Direction | **inbound only.** Rant never dials out for this |
+| Address | loopback, `127.0.0.1` by default |
+| Reachable from another machine | **no** |
+| Exposes | only the collections you tick, one at a time. Nothing is exposed by default |
+| Exposes API keys | never — no tool reads the Keychain |
+| Audit | every request is written to a local audit table you can read in Settings |
+
+The loopback restriction is enforced by construction rather than by a setting.
+`MCPBindAddress` refuses any host outside `127.0.0.0/8` and `::1` — including
+`0.0.0.0` and `::`, the two spellings of "every interface" people reach for first —
+and it throws before a socket is allocated, so a misconfiguration cannot become a
+listening port on your network.
+
+## Reading your calendar
+
+`EventKitCalendar` reads a bounded window of events around the current time, through
+EventKit, after you grant permission. It is a local database read: no request leaves
+the machine, and the calendar is never uploaded. The event title and its join link are
+used to name a meeting; nothing else is copied.
 
 ## Never
 

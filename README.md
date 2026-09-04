@@ -45,7 +45,8 @@ CONFIG=Release bash scripts/dev-build.sh
 
 **Requirements:** macOS 14.4+, Xcode, and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 (`brew install xcodegen`). Apple Silicon and Intel both work — cloud speech is identical
-on either, local models are much faster on Apple Silicon.
+on either. The on-device engine works on both; downloaded local models are much
+faster on Apple Silicon.
 </details>
 
 <details>
@@ -68,9 +69,8 @@ certificate exists.
 
 1. **Microphone** and **Accessibility** — Rant explains what each is for before asking,
    and every step can be skipped.
-2. **A speech engine** — paste your own AssemblyAI key. (*Local only* mode refuses to
-   send anything to the network, but the offline speech model is not wired up yet —
-   see below.)
+2. **A speech engine** — choose **On-device**, which needs no key and no download and
+   works with the network off, or paste your own AssemblyAI key for the cloud one.
 3. **Hold your key and talk.**
 
 > If Accessibility looks switched on but Rant says it is not, macOS is holding an
@@ -89,7 +89,7 @@ were free.
 | **Native** | Swift, SwiftUI and AppKit. Not Electron wearing a traffic-light hat. |
 | **Local-first** | Everything you say, everything you keep, and everything Rant learns lives in one folder on your Mac. |
 | **Bring your own key** | AssemblyAI by default, on your account, held in the Keychain. |
-| **Local-only means local-only** | Switch it on and a provider that needs the network is refused outright rather than quietly falling back. *(The offline speech model itself is not finished — see [Not done yet](#not-done-yet).)* |
+| **Local-only means local-only** | Switch it on and a provider that needs the network is refused outright rather than quietly falling back — and the on-device engine means that is a working mode, not an off switch. |
 | **Yours to leave** | Export a portable archive any time — and import your history *in* from Wispr Flow, VoiceInk, Superwhisper or Otter. |
 
 ## What it does
@@ -111,11 +111,13 @@ were free.
 
 Stated plainly rather than left for you to discover:
 
-- **Offline transcription does not work.** The provider, the model catalogue with its
-  sizes and memory requirements, the download and verification, the local-only refusal
-  — all built and tested. What is missing is the whisper.cpp C binding underneath, so
-  selecting a local model throws `modelUnavailable`. It never silently falls back to
-  the network. Tracked as RANT-062 in `TASKS.md`.
+- **whisper.cpp is not wired up.** Offline transcription *does* work — the on-device
+  engine uses the recogniser already in macOS, needs no key and no download, and
+  refuses to run over the network rather than quietly using Apple's servers. What is
+  missing is the whisper.cpp binding behind `WhisperBackend`, for anyone who wants a
+  specific model instead. The model catalogue, the download and its verification are
+  built and tested; selecting a *downloaded* model throws `modelUnavailable` until
+  that binding exists. Tracked as RANT-085 in `TASKS.md`.
 - **No notarised download.** Ad-hoc or self-signed builds are refused by Gatekeeper on
   other machines, which is why `install.sh` builds from source.
 - **No auto-updater.** One that cannot verify signatures is a remote code execution

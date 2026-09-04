@@ -2,6 +2,13 @@
 
 Researched 2026-09-04 against current public documentation and public source.
 
+**Re-checked during the final completeness audit, same day.** That pass re-examined the
+*Rant* column only — every MATCH and BEAT claim was tested against the implementation
+rather than against the intent, and two were found to be false and are now marked as
+such. The competitor columns were not re-researched in that pass and carry their
+original date; a claim about what a competitor ships today should be re-read from their
+documentation rather than trusted from this table.
+
 | Product | Licence | What we did |
 |---|---|---|
 | [Wispr Flow](https://wisprflow.ai/) · [docs](https://docs.wisprflow.ai/) | Proprietary | Read public site + help centre. No assets, branding or UI copied. |
@@ -140,8 +147,8 @@ Legend — **W** Wispr Flow · **V** VoiceInk · **B** Blurt · **S** Superwhisp
 | No subscription required | ✗ | ✗ | ✓ | ✗ | MATCH |
 | Open source | ✗ | ✓ (GPL) | ✓ | ✗ | MATCH — MIT |
 | Bring-your-own API key | ✗ | ✓ | ✓ | ✓ | MATCH |
-| Fully offline / local transcription | ✗ | ✓ | ✗ | ✓ | MATCH |
-| Provider choice at runtime | ✗ | ✓ | ✗ | ✓ | MATCH |
+| Fully offline / local transcription | ✗ | ✓ | ✗ | ✓ | MATCH — `AppleSpeechProvider`, pinned on device, no key and no download. Verified with real speech via `scripts/local-speech-smoke.sh`. **This row was previously a false MATCH:** the local provider had no working backend until the completeness audit — see `docs/FINAL_AUDIT.md`. |
+| Provider choice at runtime | ✗ | ✓ | ✗ | ✓ | MATCH — both engines listed from `ProviderRegistry`, and the selection is honoured. **Also previously false:** the picker offered one option and the code ignored it. |
 | Audio retention policy control | ~ | ~ | ✗ | ~ | BEAT — never / 24h / 7d / 30d / forever, with a real cleanup job |
 | Portable export archive | ✗ | ~ | ✗ | ~ | BEAT — versioned Rant Archive, documented, re-importable |
 | Import from competitors | ✗ | ✗ | ✗ | ✗ | BEAT — Migration Center with per-source adapters, dry run, idempotent |
