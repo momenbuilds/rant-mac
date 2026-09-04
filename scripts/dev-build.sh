@@ -45,18 +45,40 @@ echo "==> installing to $TARGET"
 rm -rf "$TARGET"
 cp -R "$BUILT" "$TARGET"
 
-# Ad-hoc sign so the bundle has a stable identity. Without this the TCC database
-# keys the grant to a hash that changes on every build, which brings back exactly the
-# problem the stable path was meant to solve.
-echo "==> signing (ad-hoc)"
-codesign --force --deep --sign - \
-  --entitlements App/Rant/Rant.entitlements \
-  "$TARGET" 2>/dev/null || codesign --force --deep --sign - "$TARGET"
+# Sign with a real identity when the machine has one.
+#
+# This matters more than it sounds. An ad-hoc signature is a hash of the binary, so it
+# changes on every build — and macOS binds Accessibility, Microphone and Keychain
+# grants to the signature. Ad-hoc signing therefore invalidates every permission on
+# every rebuild, leaving a switch in System Settings that looks on while pointing at a
+# binary that no longer exists. An Apple Development certificate is a stable identity,
+# so the grants survive.
+#
+# Any of these will do; a Developer ID is only needed for distribution.
+IDENTITY=""
+for pattern in "Developer ID Application" "Apple Development" "Mac Developer"; do
+  line=$(security find-identity -v -p codesigning 2>/dev/null | grep "$pattern" | head -1 || true)
+  if [ -n "$line" ]; then
+    IDENTITY=$(echo "$line" | sed -E 's/.*"(.*)".*/\1/')
+    break
+  fi
+done
+
+if [ -n "$IDENTITY" ]; then
+  echo "==> signing as \"$IDENTITY\" (stable — permissions survive rebuilds)"
+  codesign --force --deep --options runtime --sign "$IDENTITY" \
+    --entitlements App/Rant/Rant.entitlements "$TARGET"
+else
+  echo "==> signing ad-hoc (no certificate found; permissions reset on every rebuild)"
+  codesign --force --deep --sign - \
+    --entitlements App/Rant/Rant.entitlements \
+    "$TARGET" 2>/dev/null || codesign --force --deep --sign - "$TARGET"
+fi
 
 # The signature changes on every build, and macOS binds Accessibility grants to it.
 # Clearing the stale entry here means the app is never left in the state that wastes
 # the most time: a switch that looks on, pointing at a binary that no longer exists.
-if [ "${RESET_TCC:-1}" = "1" ]; then
+if [ "${RESET_TCC:-1}" = "1" ] && [ -z "$IDENTITY" ]; then
   BUNDLE_ID=$(defaults read "$TARGET/Contents/Info" CFBundleIdentifier 2>/dev/null || echo "")
   if [ -n "$BUNDLE_ID" ]; then
     echo "==> clearing the stale Accessibility grant for $BUNDLE_ID"

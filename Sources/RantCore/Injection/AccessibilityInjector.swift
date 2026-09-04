@@ -69,6 +69,7 @@ public actor AccessibilityInjector: TextInjector {
       return .insertedDirectly
     }
 
+    log.info("accessibility insertion declined; falling back to ⌘V")
     return await pasteViaClipboard(plan.text)
   }
 
@@ -117,6 +118,7 @@ public actor AccessibilityInjector: TextInjector {
     pasteboard.write(text)
     let afterWrite = pasteboard.changeCount
 
+    log.info("clipboard written, posting ⌘V")
     guard postCommandV() else {
       log.warning("could not synthesise ⌘V; text left on clipboard")
       return .leftOnClipboard(reason: "Rant could not send ⌘V — the text is on your clipboard")

@@ -288,7 +288,9 @@ public actor DictationSession {
     do {
       injection = try await injector.inject(
         InjectionRequest(text: finalText, context: capturedContext))
+      log.info("injection: \(String(describing: injection))")
     } catch {
+      log.error("injection failed: \(error.localizedDescription)")
       // The text exists and the user earned it — surface the failure but keep the
       // text available rather than discarding it.
       lastSuccessfulText = finalText

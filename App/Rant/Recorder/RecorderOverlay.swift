@@ -20,24 +20,24 @@ struct RecorderOverlay: View {
   /// The pill's own metrics. Kept here rather than in the theme because nothing else
   /// in the app is this shape.
   private enum Pill {
-    static let height: CGFloat = 52
-    static let control: CGFloat = 34
-    static let barCount = 22
+    static let height: CGFloat = 34
+    static let control: CGFloat = 22
+    static let barCount = 16
   }
 
   private var geometry: MeterGeometry { MeterGeometry(barCount: Pill.barCount) }
 
   var body: some View {
-    HStack(spacing: 10) {
+    HStack(spacing: 6) {
       leading
       centre
       trailing
     }
-    .padding(.horizontal, 9)
+    .padding(.horizontal, 6)
     .frame(height: Pill.height)
     .background(Theme.overlaySurface, in: Capsule())
     .overlay(Capsule().strokeBorder(Theme.hairlineStrong, lineWidth: 1))
-    .shadow(color: .black.opacity(0.26), radius: 16, y: 5)
+    .shadow(color: .black.opacity(0.24), radius: 11, y: 3)
     .animation(Theme.animation(Theme.springy, reduceMotion: reduceMotion), value: controller.state)
     // One label for the whole thing: VoiceOver should say what is happening, not
     // enumerate twenty-two waveform bars.
@@ -65,11 +65,11 @@ struct RecorderOverlay: View {
       if pulses && reduceMotion {
         // With Reduce Motion on, a ring stands in for the pulse rather than the
         // signal being lost entirely.
-        Circle().strokeBorder(tint.opacity(0.45), lineWidth: 3).frame(width: 17, height: 17)
+        Circle().strokeBorder(tint.opacity(0.45), lineWidth: 2).frame(width: 13, height: 13)
       }
       Circle()
         .fill(tint)
-        .frame(width: 9, height: 9)
+        .frame(width: 7, height: 7)
         .opacity(pulses && !reduceMotion ? 0.35 : 1)
         .animation(
           pulses && !reduceMotion
@@ -83,34 +83,34 @@ struct RecorderOverlay: View {
   @ViewBuilder private var centre: some View {
     switch controller.state {
     case .listening:
-      waveform.frame(width: 132)
+      waveform.frame(width: 86)
     case .transcribing, .enhancing, .inserting:
       HStack(spacing: 7) {
         ProgressView().controlSize(.small).scaleEffect(0.7)
         Text(busyLabel)
-          .font(.system(size: 12.5, weight: .medium))
+          .font(.system(size: 11, weight: .medium))
           .foregroundStyle(Theme.ink)
       }
-      .frame(width: 132)
+      .frame(width: 96)
     case .success(let text):
       Text(text)
-        .font(.system(size: 12.5))
+        .font(.system(size: 11))
         .foregroundStyle(Theme.inkMuted)
         .lineLimit(1)
         .truncationMode(.tail)
-        .frame(width: 168, alignment: .leading)
+        .frame(width: 132, alignment: .leading)
     case .failure(let message, _):
       Text(message)
-        .font(.system(size: 12))
+        .font(.system(size: 10.5))
         .foregroundStyle(Theme.live)
         .lineLimit(2)
-        .frame(width: 190, alignment: .leading)
+        .frame(width: 150, alignment: .leading)
     case .cancelled:
       Text("Cancelled")
-        .font(.system(size: 12.5)).foregroundStyle(Theme.inkMuted)
-        .frame(width: 132, alignment: .leading)
+        .font(.system(size: 11)).foregroundStyle(Theme.inkMuted)
+        .frame(width: 96, alignment: .leading)
     case .idle:
-      waveform.frame(width: 132).opacity(0.28)
+      waveform.frame(width: 86).opacity(0.28)
     }
   }
 
@@ -125,14 +125,14 @@ struct RecorderOverlay: View {
 
   private var waveform: some View {
     let bars = geometry.bars(from: controller.meter)
-    return HStack(alignment: .center, spacing: 2.5) {
+    return HStack(alignment: .center, spacing: 2) {
       ForEach(Array(bars.enumerated()), id: \.offset) { _, height in
         Capsule()
           .fill(Theme.clay)
-          .frame(width: 2.5, height: max(3, CGFloat(height) * 22))
+          .frame(width: 2, height: max(2.5, CGFloat(height) * 15))
       }
     }
-    .frame(height: 22)
+    .frame(height: 15)
     .animation(
       Theme.animation(.linear(duration: 0.06), reduceMotion: reduceMotion),
       value: controller.meter)
@@ -152,7 +152,7 @@ struct RecorderOverlay: View {
       }
     case .success:
       Image(systemName: "checkmark")
-        .font(.system(size: 12, weight: .bold))
+        .font(.system(size: 10, weight: .bold))
         .foregroundStyle(Theme.moss)
         .frame(width: Pill.control, height: Pill.control)
         .accessibilityHidden(true)
@@ -176,7 +176,7 @@ struct RecorderOverlay: View {
   ) -> some View {
     Button(action: action) {
       Image(systemName: icon)
-        .font(.system(size: 12, weight: .bold))
+        .font(.system(size: 9, weight: .bold))
         .foregroundStyle(tint)
         .frame(width: Pill.control, height: Pill.control)
         .background(fill, in: Circle())

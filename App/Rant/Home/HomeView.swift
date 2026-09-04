@@ -11,6 +11,7 @@ struct HomeView: View {
     VStack(alignment: .leading, spacing: Theme.Spacing.large) {
       PageTitle(title: greeting, subtitle: nil)
       hotkeyLine
+      if let shortcut = model.fallbackShortcut { fallbackNotice(shortcut) }
       if !permissions.isReadyForDictation { permissionNotice }
       if !model.hasAPIKey && !preferences.localOnly { keyNotice }
       statStrip
@@ -32,14 +33,48 @@ struct HomeView: View {
   /// at the very top of the home screen, and it is the right call: the one thing a
   /// new user needs is which key, and the one thing an old user needs is a reminder
   /// after they change it.
-  private var hotkeyLine: some View {
-    HStack(spacing: 8) {
-      Text("Hold").font(.system(size: 15)).foregroundStyle(Theme.inkMuted)
-      KeyCap(text: preferences.triggerKey.displayName)
-      Text("and talk. Let go and it lands where your cursor is.")
-        .font(.system(size: 15))
-        .foregroundStyle(Theme.inkMuted)
-      Spacer()
+  @ViewBuilder private var hotkeyLine: some View {
+    if let shortcut = model.fallbackShortcut {
+      HStack(spacing: 8) {
+        Text("Press").font(.system(size: 15)).foregroundStyle(Theme.inkMuted)
+        KeyCap(text: shortcut)
+        Text("to start, again to stop.")
+          .font(.system(size: 15)).foregroundStyle(Theme.inkMuted)
+        Spacer()
+      }
+    } else {
+      HStack(spacing: 8) {
+        Text("Hold").font(.system(size: 15)).foregroundStyle(Theme.inkMuted)
+        KeyCap(text: preferences.triggerKey.displayName)
+        Text("and talk. Let go and it lands where your cursor is.")
+          .font(.system(size: 15))
+          .foregroundStyle(Theme.inkMuted)
+        Spacer()
+      }
+    }
+  }
+
+  /// Rant is usable before any permission is granted, on a plain shortcut, with the
+  /// text arriving on the clipboard. Saying so turns "nothing happens" into "here is
+  /// what works now, and here is what you get by granting one thing".
+  private func fallbackNotice(_ shortcut: String) -> some View {
+    Card {
+      HStack(alignment: .top, spacing: Theme.Spacing.small) {
+        Image(systemName: "bolt.horizontal.circle")
+          .font(.system(size: 13)).foregroundStyle(Theme.clay).padding(.top, 1)
+          .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 4) {
+          HStack(spacing: 7) {
+            Text("Working without Accessibility")
+              .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.ink)
+            KeyCap(text: shortcut)
+          }
+          Text("Press \(shortcut) to start and stop. The text lands on your clipboard — press ⌘V where you want it. Grant Accessibility and Rant switches to hold-to-talk on your own key, typing straight at the cursor.")
+            .font(.system(size: 12)).foregroundStyle(Theme.inkMuted)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        Spacer(minLength: 0)
+      }
     }
   }
 

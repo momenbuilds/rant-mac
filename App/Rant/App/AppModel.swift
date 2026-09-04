@@ -26,6 +26,9 @@ final class AppModel: ObservableObject {
   /// What the *engine* is actually listening for, as opposed to what the settings
   /// screen says. When these disagree, the key does nothing and nothing explains why.
   @Published private(set) var listeningFor: TriggerKey?
+  /// Set when Rant is running without Accessibility, on the Carbon shortcut, writing
+  /// to the clipboard. The UI says so rather than letting the difference be a mystery.
+  @Published private(set) var fallbackShortcut: String?
 
   private var database: Database?
   private(set) var store: SQLiteTranscriptStore?
@@ -38,6 +41,8 @@ final class AppModel: ObservableObject {
   private let log = RantLog("App")
   private var meterTimer: Timer?
   private var cancellables: Set<AnyCancellable> = []
+  /// The permission-free fallback, used while Accessibility is missing.
+  private var fallbackHotkey: CarbonHotkey?
 
   /// Presenting the overlay is a window operation, so it is owned by the controller
   /// rather than by a SwiftUI scene — a floating recorder must not steal focus, and
@@ -345,15 +350,47 @@ final class AppModel: ObservableObject {
       hotkeys = engine
       hotkeyProblem = nil
       listeningFor = preferences.triggerKey
+      // The real listener is running, so the limited one is no longer needed.
+      fallbackHotkey?.unregister()
+      fallbackHotkey = nil
+      fallbackShortcut = nil
       log.info("event tap installed, listening for \(preferences.triggerKey.rawValue)")
     } else {
       listeningFor = nil
       hotkeys = nil
       log.error("event tap NOT installed (trusted: \(AXIsProcessTrusted()))")
+      installFallbackHotkey()
       hotkeyProblem = permissions.accessibility.isGranted
         ? "Rant could not install its keyboard listener. Try quitting and reopening Rant."
         : "Rant needs Accessibility permission before your dictation key can work anywhere."
     }
+  }
+
+  /// Claims a plain shortcut so Rant does something useful before any permission is
+  /// granted.
+  ///
+  /// Without Accessibility there is no event tap and no way to type into another
+  /// application, so this is a genuinely reduced product: a key combination rather
+  /// than hold-to-talk, and the text arrives on the clipboard for you to paste rather
+  /// than at your cursor. That is worth having — an app that is inert until you have
+  /// read its documentation is an app most people delete — but it is not the real
+  /// thing, and the UI says which one you are using.
+  private func installFallbackHotkey() {
+    guard fallbackHotkey == nil else { return }
+    for combination in [CarbonHotkey.Combination.optionSpace, .controlOptionD] {
+      let hotkey = CarbonHotkey(combination) { [weak self] in
+        Task { @MainActor [weak self] in self?.toggleDictation() }
+      }
+      if hotkey.register() {
+        fallbackHotkey = hotkey
+        fallbackShortcut = combination.displayName
+        hotkeyProblem = nil
+        log.info("running without Accessibility on \(combination.displayName)")
+        return
+      }
+    }
+    fallbackShortcut = nil
+    hotkeyProblem = "Rant needs Accessibility permission before your dictation key can work anywhere."
   }
 
   private func handle(_ command: HotkeyEngine.Command) {
