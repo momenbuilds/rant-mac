@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Rant is deliberately NOT sandboxed.
+
+       A sandboxed app cannot install a CGEventTap, cannot read another
+       application's Accessibility tree, and cannot synthesise a keystroke into
+       another app. Those three capabilities *are* the product: without them Rant
+       cannot know where your cursor is or put text there.
+
+       The trade-off is stated plainly rather than hidden: Rant runs with the same
+       privileges as any other app you launch, and the code that uses them is open
+       for you to read. See docs/THREAT_MODEL.md. -->
+  <key>com.apple.security.app-sandbox</key>
+  <false/>
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
+  <key>com.apple.security.automation.apple-events</key>
+  <true/>
+</dict>
+</plist>

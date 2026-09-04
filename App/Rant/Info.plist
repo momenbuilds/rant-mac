@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleExecutable</key>
+  <string>$(EXECUTABLE_NAME)</string>
+  <key>CFBundleIdentifier</key>
+  <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleName</key>
+  <string>$(PRODUCT_NAME)</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$(MARKETING_VERSION)</string>
+  <key>CFBundleVersion</key>
+  <string>$(CURRENT_PROJECT_VERSION)</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>MIT licensed. Your voice, your Mac, your data.</string>
+
+  <!-- Every permission string says what it is for in the user's terms, because a
+       vague one is how people end up denying a permission the app cannot work
+       without and never finding out why. -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Rant listens while you hold your dictation key, so it can turn what you say into text. Audio is not kept unless you turn that on yourself.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>Rant uses on-device speech recognition when you choose the local speech engine, so nothing you say leaves your Mac.</string>
+  <key>NSCalendarsUsageDescription</key>
+  <string>Rant reads your upcoming events so the notetaker can offer to start at the right time. Your calendar is never uploaded anywhere.</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>Rant asks your browser which site you are on, so it can match your writing style to where you are typing.</string>
+
+  <!-- The app is usable entirely from the menu bar, but it has a real window too, so
+       it is not an agent-only app. -->
+  <key>LSUIElement</key>
+  <false/>
+  <key>NSSupportsAutomaticTermination</key>
+  <false/>
+  <key>NSSupportsSuddenTermination</key>
+  <false/>
+</dict>
+</plist>

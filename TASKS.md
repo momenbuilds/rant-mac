@@ -43,17 +43,17 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - acceptance: os.Logger wrapper; transcript/context bodies never logged at default level
   - verify: `swift test --filter RedactionTests`
 
-- [~] RANT-007 — Keychain secret storage
+- [x] RANT-007 — Keychain secret storage
   - depends: RANT-005
   - acceptance: store/read/delete API keys in Keychain; never UserDefaults; no logging
   - verify: `swift test --filter SecretStoreTests`
 
-- [ ] RANT-008 — SQLite storage layer with versioned migrations + FTS5
+- [x] RANT-008 — SQLite storage layer with versioned migrations + FTS5
   - depends: RANT-005
   - acceptance: schema v1..vN applied in order; migration tests; WAL; FTS5 search
   - verify: `swift test --filter StoreTests`
 
-- [ ] RANT-009 — Permissions manager (mic, accessibility, screen recording)
+- [x] RANT-009 — Permissions manager (mic, accessibility, screen recording)
   - depends: RANT-005
   - acceptance: status query + deep links to the correct System Settings panes
   - verify: `swift test --filter PermissionsTests`
@@ -66,62 +66,62 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
     handling that does not break normal shortcuts
   - verify: `swift test --filter HotkeyStateMachineTests`
 
-- [ ] RANT-011 — Audio capture pipeline (AVAudioEngine, 16 kHz mono PCM, level meter)
+- [x] RANT-011 — Audio capture pipeline (AVAudioEngine, 16 kHz mono PCM, level meter)
   - depends: RANT-005
   - acceptance: capture starts <150 ms, ring buffer prevents first-syllable loss
   - verify: `swift test --filter AudioTests`
 
-- [ ] RANT-012 — AssemblyAI streaming provider (BYOK)
+- [x] RANT-012 — AssemblyAI streaming provider (BYOK)
   - depends: RANT-007, RANT-011
   - acceptance: v3 streaming URL/auth/message construction unit-tested against fixtures;
     reconnect/backoff; cancellation; key-terms priming
   - verify: `swift test --filter AssemblyAITests`
 
-- [ ] RANT-013 — Text injection (AX-first, clipboard+Cmd-V fallback, clipboard restore)
+- [x] RANT-013 — Text injection (AX-first, clipboard+Cmd-V fallback, clipboard restore)
   - depends: RANT-009
   - acceptance: secure-field refusal, spacing rules, clipboard save/restore, failure keeps
     text on clipboard and notifies
   - verify: `swift test --filter InjectionTests`
 
-- [ ] RANT-014 — Recording overlay (original design, waveform, live partials, states)
+- [x] RANT-014 — Recording overlay (original design, waveform, live partials, states)
   - depends: RANT-010, RANT-011
   - acceptance: NSPanel non-activating overlay, all states, drag position, Reduce Motion
   - verify: app build + manual smoke
 
-- [ ] RANT-015 — Dictation session orchestrator (hotkey→audio→STT→enhance→inject)
+- [x] RANT-015 — Dictation session orchestrator (hotkey→audio→STT→enhance→inject)
   - depends: RANT-012, RANT-013, RANT-014
   - acceptance: full pipeline with mock STT in tests; latency stages recorded
   - verify: `swift test --filter SessionTests`
 
-- [ ] RANT-016 — App shell, menu bar, XcodeGen project
+- [x] RANT-016 — App shell, menu bar, XcodeGen project
   - depends: RANT-014
   - acceptance: `xcodegen` regenerates project; app builds; menu bar item with actions
   - verify: `bash scripts/build-app.sh`
 
-- [ ] RANT-017 — Onboarding + Settings (permissions, mic pick, hotkey, API key, privacy)
+- [x] RANT-017 — Onboarding + Settings (permissions, mic pick, hotkey, API key, privacy)
   - depends: RANT-016, RANT-007
   - acceptance: key saved to Keychain, test-connection button, per-pane deep links
   - verify: app build + `swift test --filter OnboardingTests`
 
-- [ ] RANT-018 — Stable dev install (`/Applications/Rant Dev.app`) + scripts
+- [x] RANT-018 — Stable dev install (`/Applications/Rant Dev.app`) + scripts
   - depends: RANT-016
   - acceptance: scripts/dev-build.sh installs to a stable path with stable bundle ID
   - verify: `bash scripts/dev-build.sh`
 
-- [ ] RANT-019 — Error handling: retry, paste-last, offline state, cancel
+- [x] RANT-019 — Error handling: retry, paste-last, offline state, cancel
   - depends: RANT-015
   - acceptance: failed transcription recoverable; last transcript re-pasteable
   - verify: `swift test --filter RecoveryTests`
 
 ## Phase C — Intelligence
 
-- [ ] RANT-020 — Context engine (app/window/URL/field/selection/before-after text)
+- [x] RANT-020 — Context engine (app/window/URL/field/selection/before-after text)
   - verify: `swift test --filter ContextTests`
 - [x] RANT-021 — Cleanup levels (None/Light/Medium/High) + spoken punctuation + backtracking
   - verify: `swift test --filter CleanupTests`
 - [ ] RANT-022 — Enhancement providers (Apple FM, Ollama/OpenAI-compatible, none)
   - verify: `swift test --filter EnhancementTests`
-- [ ] RANT-023 — Personal dictionary (boosts, replacements, casing, import/export)
+- [~] RANT-023 — Personal dictionary (boosts, replacements, casing, import/export)
   - verify: `swift test --filter DictionaryTests`
 - [ ] RANT-024 — Snippets (voice triggers, expansion inside longer dictation)
   - verify: `swift test --filter SnippetTests`
@@ -177,7 +177,7 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
 
 ## Phase G — Hardening
 
-- [ ] RANT-060 — scripts/check.sh as the definition of green
+- [x] RANT-060 — scripts/check.sh as the definition of green
   - verify: `bash scripts/check.sh`
 - [ ] RANT-061 — CI workflow (build, unit tests, lint)
   - verify: workflow file present + `swift build` locally

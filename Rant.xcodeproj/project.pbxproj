@@ -1,0 +1,468 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		03ECE1743141BB926C962D5D /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD389C3FFFC4CF6441449AAC /* MenuBarContent.swift */; };
+		0E501602B04A182D51754E92 /* Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33BE18405DF3FB5FBBD4F8A /* Permissions.swift */; };
+		199D9D88F05654F0D4F85EA3 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E987D1EC752AF8C50C11B9C9 /* AppModel.swift */; };
+		20E8D6BAE987C56241101CBA /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BFCA8100153B98BC057D6B3 /* HistoryView.swift */; };
+		23699843B8661C94990D74C3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208110D8C3C2F5EEA4BF165F /* SettingsView.swift */; };
+		526CFD4D90896934162F4F97 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A9A10E7172019C35A6C864 /* Preferences.swift */; };
+		57113839F403C1A8FB2312D5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D7258A233E69A734D0B12C9 /* Theme.swift */; };
+		59B48B6BFB65F91DBCCBE64E /* RantApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EACEA5AA69091FBBEAF12DC /* RantApp.swift */; };
+		A22EFA97DFF54ABA1E7706EC /* RecorderOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE3A083F0C8AB11A4EB5D54C /* RecorderOverlay.swift */; };
+		AC10670C7ABAD3149B03365A /* OverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C9A013536872A31BA50407 /* OverlayController.swift */; };
+		D21303E13218D64F499077C4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6215D4531E1063A40D8A2D10 /* OnboardingView.swift */; };
+		E4EAB37F7A8A03B828A929CF /* RantCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9D4E1E13B0E11D5F2A81B7B4 /* RantCore */; };
+		EED0B34A571528E2234D922E /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9DC724C5939BF3ED0FDBAC9 /* HomeView.swift */; };
+		FB2804658A7EB5940E5D4C21 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 689EB884031F20394946F225 /* RootView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		03C9A013536872A31BA50407 /* OverlayController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayController.swift; sourceTree = "<group>"; };
+		208110D8C3C2F5EEA4BF165F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		2D7258A233E69A734D0B12C9 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		2EACEA5AA69091FBBEAF12DC /* RantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RantApp.swift; sourceTree = "<group>"; };
+		6215D4531E1063A40D8A2D10 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		689EB884031F20394946F225 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		8BFCA8100153B98BC057D6B3 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		A6354DBAB43B57FC9FDEDC11 /* Rant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rant.entitlements; sourceTree = "<group>"; };
+		A9DC724C5939BF3ED0FDBAC9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		BD389C3FFFC4CF6441449AAC /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
+		C0A66A9791CE59F1F8E41115 /* Rant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rant.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D2FC28547A789BB5867734DB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D86DA3ECF09A2156921FBF81 /* rant-mac */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "rant-mac"; path = .; sourceTree = SOURCE_ROOT; };
+		E33BE18405DF3FB5FBBD4F8A /* Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Permissions.swift; sourceTree = "<group>"; };
+		E987D1EC752AF8C50C11B9C9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		EE3A083F0C8AB11A4EB5D54C /* RecorderOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderOverlay.swift; sourceTree = "<group>"; };
+		F1A9A10E7172019C35A6C864 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FCA1476F369D76001A1EEAE7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E4EAB37F7A8A03B828A929CF /* RantCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0D15106656F18851BCC5DAB7 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				A9DC724C5939BF3ED0FDBAC9 /* HomeView.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		166AD33219FE5EC475B6834E /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				D86DA3ECF09A2156921FBF81 /* rant-mac */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		2A8981B9169DC897B16B548E /* History */ = {
+			isa = PBXGroup;
+			children = (
+				8BFCA8100153B98BC057D6B3 /* HistoryView.swift */,
+			);
+			path = History;
+			sourceTree = "<group>";
+		};
+		42F7096DB23347BDD4B6894C = {
+			isa = PBXGroup;
+			children = (
+				D3A60B61046322AE382F9D48 /* App */,
+				166AD33219FE5EC475B6834E /* Packages */,
+				B6ED924D1B451E2F7F240068 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		528D7E42C7CA060179D16BFB /* Recorder */ = {
+			isa = PBXGroup;
+			children = (
+				03C9A013536872A31BA50407 /* OverlayController.swift */,
+				EE3A083F0C8AB11A4EB5D54C /* RecorderOverlay.swift */,
+			);
+			path = Recorder;
+			sourceTree = "<group>";
+		};
+		5B7FD498F5CBE55FCD5D75BB /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				6215D4531E1063A40D8A2D10 /* OnboardingView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		6AA996B2AFDAC75A60AD3D11 /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				BD389C3FFFC4CF6441449AAC /* MenuBarContent.swift */,
+			);
+			path = MenuBar;
+			sourceTree = "<group>";
+		};
+		8563FCB9172FEE11ED67A901 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				E987D1EC752AF8C50C11B9C9 /* AppModel.swift */,
+				E33BE18405DF3FB5FBBD4F8A /* Permissions.swift */,
+				F1A9A10E7172019C35A6C864 /* Preferences.swift */,
+				2EACEA5AA69091FBBEAF12DC /* RantApp.swift */,
+				689EB884031F20394946F225 /* RootView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		9EE008512EAE79F8994EA8A6 /* Rant */ = {
+			isa = PBXGroup;
+			children = (
+				8563FCB9172FEE11ED67A901 /* App */,
+				AE6FE28CBFD2D26D8AEE98FA /* DesignSystem */,
+				2A8981B9169DC897B16B548E /* History */,
+				0D15106656F18851BCC5DAB7 /* Home */,
+				6AA996B2AFDAC75A60AD3D11 /* MenuBar */,
+				5B7FD498F5CBE55FCD5D75BB /* Onboarding */,
+				528D7E42C7CA060179D16BFB /* Recorder */,
+				DE86C9D92826507D1169DFB7 /* Settings */,
+				D2FC28547A789BB5867734DB /* Info.plist */,
+				A6354DBAB43B57FC9FDEDC11 /* Rant.entitlements */,
+			);
+			path = Rant;
+			sourceTree = "<group>";
+		};
+		AE6FE28CBFD2D26D8AEE98FA /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				2D7258A233E69A734D0B12C9 /* Theme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		B6ED924D1B451E2F7F240068 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C0A66A9791CE59F1F8E41115 /* Rant.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D3A60B61046322AE382F9D48 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				9EE008512EAE79F8994EA8A6 /* Rant */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		DE86C9D92826507D1169DFB7 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				208110D8C3C2F5EEA4BF165F /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		54A9F661CC5BF50BCC265FEB /* Rant */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B240B38AB3C8D0E5A02271C1 /* Build configuration list for PBXNativeTarget "Rant" */;
+			buildPhases = (
+				06CC8EDA298C93B3A612BD57 /* Sources */,
+				FCA1476F369D76001A1EEAE7 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Rant;
+			packageProductDependencies = (
+				9D4E1E13B0E11D5F2A81B7B4 /* RantCore */,
+			);
+			productName = Rant;
+			productReference = C0A66A9791CE59F1F8E41115 /* Rant.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		974134BDDB098B94FE599BAF /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					54A9F661CC5BF50BCC265FEB = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 884D61E2A345F25DAA1B6BDC /* Build configuration list for PBXProject "Rant" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 42F7096DB23347BDD4B6894C;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				27C1FBA39A191A1818F9C1F5 /* XCLocalSwiftPackageReference "." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = B6ED924D1B451E2F7F240068 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				54A9F661CC5BF50BCC265FEB /* Rant */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		06CC8EDA298C93B3A612BD57 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				199D9D88F05654F0D4F85EA3 /* AppModel.swift in Sources */,
+				20E8D6BAE987C56241101CBA /* HistoryView.swift in Sources */,
+				EED0B34A571528E2234D922E /* HomeView.swift in Sources */,
+				03ECE1743141BB926C962D5D /* MenuBarContent.swift in Sources */,
+				D21303E13218D64F499077C4 /* OnboardingView.swift in Sources */,
+				AC10670C7ABAD3149B03365A /* OverlayController.swift in Sources */,
+				0E501602B04A182D51754E92 /* Permissions.swift in Sources */,
+				526CFD4D90896934162F4F97 /* Preferences.swift in Sources */,
+				59B48B6BFB65F91DBCCBE64E /* RantApp.swift in Sources */,
+				A22EFA97DFF54ABA1E7706EC /* RecorderOverlay.swift in Sources */,
+				FB2804658A7EB5940E5D4C21 /* RootView.swift in Sources */,
+				23699843B8661C94990D74C3 /* SettingsView.swift in Sources */,
+				57113839F403C1A8FB2312D5 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1ACAE46FFD04F7685FFCEB63 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = Rant;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		38AAB9A3D777CA8F1BD4CC33 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/Rant/Rant.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = App/Rant/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.rant.mac.dev;
+				PRODUCT_NAME = "Rant Dev";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		929897EF5A60E64964494CE8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = Rant;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		EEB825ECFFD0982CB56F32B5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/Rant/Rant.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = App/Rant/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.rant.mac;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		884D61E2A345F25DAA1B6BDC /* Build configuration list for PBXProject "Rant" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				929897EF5A60E64964494CE8 /* Debug */,
+				1ACAE46FFD04F7685FFCEB63 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B240B38AB3C8D0E5A02271C1 /* Build configuration list for PBXNativeTarget "Rant" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				38AAB9A3D777CA8F1BD4CC33 /* Debug */,
+				EEB825ECFFD0982CB56F32B5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		27C1FBA39A191A1818F9C1F5 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9D4E1E13B0E11D5F2A81B7B4 /* RantCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RantCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 974134BDDB098B94FE599BAF /* Project object */;
+}

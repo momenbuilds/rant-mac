@@ -149,12 +149,14 @@ final class AssemblyAITests: XCTestCase {
   }
 
   func testCredentialShapedContextIsRedactedBeforeSending() throws {
+    // not-a-real-key — a fixture shaped like a credential, so the redactor has
+    // something to catch. The check.sh secret scan honours this marker.
     let context = TranscriptionContext(
-      textBeforeCursor: "export OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz012345")
+      textBeforeCursor: "export OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz012345")  // not-a-real-key
     let data = try provider(transport: FakeHTTPTransport(json: "{}"))
       .makeConfig(audio: audio(), context: context, options: .default)
     let wire = String(decoding: data, as: UTF8.self)
-    XCTAssertFalse(wire.contains("sk-abcdefghijklmnopqrstuvwxyz012345"))
+    XCTAssertFalse(wire.contains("sk-abcdefghijklmnopqrstuvwxyz012345"))  // not-a-real-key
     XCTAssertTrue(wire.contains("redacted"))
   }
 
