@@ -99,6 +99,27 @@ public struct SpokenPunctuation: Sendable {
     case bullet
   }
 
+  /// Replacement phrases grouped by their first word, longest first within a group.
+  ///
+  /// Without this the expander compared every token against all sixty phrases and
+  /// re-normalised the token each time — about sixty string allocations per word,
+  /// which took over four seconds on a long dictation and was caught by
+  /// `PerformanceTests.testSpokenPunctuationExpansionCannotHangOnAdversarialInput`.
+  /// Indexing by first word means a token that begins no phrase costs one dictionary
+  /// lookup, which is the overwhelmingly common case.
+  private static let index: [String: [(words: [String], output: Output)]] = {
+    var table: [String: [(words: [String], output: Output)]] = [:]
+    for (phrase, output) in replacements {
+      let words = phrase.split(separator: " ").map(String.init)
+      guard let first = words.first else { continue }
+      table[first, default: []].append((words, output))
+    }
+    for key in table.keys {
+      table[key]?.sort { $0.words.count > $1.words.count }
+    }
+    return table
+  }()
+
   public init() {}
 
   /// Expand spoken punctuation in `text`.
@@ -108,8 +129,12 @@ public struct SpokenPunctuation: Sendable {
   /// a noun — and because gluing punctuation to the preceding word is a join
   /// operation, not a replacement.
   public func expand(_ text: String) -> String {
-    var tokens = text.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+    let tokens = text.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
     guard !tokens.isEmpty else { return text }
+
+    // Normalise once. The old code normalised inside the phrase loop, so the same
+    // token was lowercased and trimmed dozens of times.
+    let normalised = tokens.map(Self.normalise)
 
     var out: [String] = []
     out.reserveCapacity(tokens.count)
@@ -118,22 +143,26 @@ public struct SpokenPunctuation: Sendable {
     while index < tokens.count {
       var matched = false
 
-      for (phrase, output) in Self.replacements {
-        let words = phrase.split(separator: " ").map(String.init)
-        guard index + words.count <= tokens.count else { continue }
-        let slice = tokens[index..<(index + words.count)]
-        guard zip(slice, words).allSatisfy({ Self.normalise($0.0) == $0.1 }) else { continue }
+      if let candidates = Self.index[normalised[index]] {
+        for candidate in candidates {
+          let length = candidate.words.count
+          guard index + length <= tokens.count else { continue }
+          var equal = true
+          for offset in 0..<length where normalised[index + offset] != candidate.words[offset] {
+            equal = false
+            break
+          }
+          guard equal else { continue }
 
-        // "a period" is a noun phrase, not an instruction.
-        if let previous = out.last, Self.nounMarkers.contains(Self.normalise(previous)) {
-          continue
+          // "a period" is a noun phrase, not an instruction.
+          if let previous = out.last, Self.nounMarkers.contains(Self.normalise(previous)) {
+            continue
+          }
+          emit(candidate.output, into: &out)
+          index += length
+          matched = true
+          break
         }
-        // Trailing punctuation on the spoken word means the provider already
-        // punctuated it — "period." is the provider's guess, still a command.
-        emit(output, into: &out)
-        index += words.count
-        matched = true
-        break
       }
 
       if !matched {
@@ -142,8 +171,7 @@ public struct SpokenPunctuation: Sendable {
       }
     }
 
-    tokens = out
-    return tokens.joined(separator: " ")
+    return out.joined(separator: " ")
       // Collapse the marker spacing introduced above.
       .replacingOccurrences(of: " \u{0}GLUE\u{0} ", with: "")
       .replacingOccurrences(of: "\u{0}GLUE\u{0}", with: "")
@@ -195,8 +223,17 @@ public struct SpokenPunctuation: Sendable {
 
   /// Lowercased, stripped of the punctuation a speech provider may have already
   /// attached, so "Period." and "period" are the same token.
+  /// Lowercased, stripped of the punctuation a speech provider may have already
+  /// attached, so "Period." and "period" are the same token.
+  ///
+  /// Hand-written rather than `trimmingCharacters(in:)` because this runs once per
+  /// word of every dictation and `CharacterSet` construction dominated the cost.
   static func normalise(_ token: String) -> String {
-    token.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".,!?;:\u{201C}\u{201D}\"'"))
+    var characters = Array(token.lowercased())
+    let strippable: Set<Character> = [".", ",", "!", "?", ";", ":", "\u{201C}", "\u{201D}", "\"", "'"]
+    while let last = characters.last, strippable.contains(last) { characters.removeLast() }
+    while let first = characters.first, strippable.contains(first) { characters.removeFirst() }
+    return String(characters)
   }
 
   /// The provider often writes "Tuesday, comma" — the comma it guessed is redundant

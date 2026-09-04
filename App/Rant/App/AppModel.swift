@@ -28,6 +28,7 @@ final class AppModel: ObservableObject {
   private(set) var store: SQLiteTranscriptStore?
   private(set) var vocabulary: VocabularyStore?
   private(set) var notes: NoteStore?
+  private(set) var meetings: MeetingStore?
   private var session: DictationSession?
   private var hotkeys: HotkeyEngine?
   private let microphone = MicrophoneCapture()
@@ -77,6 +78,7 @@ final class AppModel: ObservableObject {
       self.store = SQLiteTranscriptStore(database: database)
       self.vocabulary = VocabularyStore(database: database)
       self.notes = NoteStore(database: database)
+      self.meetings = MeetingStore(database: database)
       log.info("database ready at schema \(database.userVersion)")
     } catch {
       log.error("could not open the database: \(error.localizedDescription)")
@@ -232,6 +234,22 @@ final class AppModel: ObservableObject {
   /// dictation rather than the next launch.
   func rebuildVocabulary() {
     buildSession()
+  }
+
+  // MARK: - Notetaker
+
+  /// Starts a meeting recording.
+  ///
+  /// Screen Recording is what macOS requires for system audio, so without it the
+  /// notetaker records only your side of the call. That is a real limitation and the
+  /// UI says so rather than failing — a one-sided transcript is still worth having.
+  func startMeeting() {
+    if !permissions.screenRecording.isGranted {
+      permissions.requestScreenRecording()
+    }
+    lastError = permissions.screenRecording.isGranted
+      ? nil
+      : "Rant will record only your side of this call until Screen Recording is granted."
   }
 
   // MARK: - Import and export

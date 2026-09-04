@@ -21,13 +21,14 @@ struct MainWindow: View {
   @State private var selection: Destination = .home
 
   enum Destination: String, CaseIterable, Identifiable {
-    case home, history, insights, dictionary, snippets, styles, scratchpad, migrate, settings
+    case home, history, notetaker, insights, dictionary, snippets, styles, scratchpad, migrate, settings
     var id: String { rawValue }
 
     var title: String {
       switch self {
       case .home: "Home"
       case .history: "History"
+      case .notetaker: "Notetaker"
       case .insights: "Insights"
       case .dictionary: "Dictionary"
       case .snippets: "Snippets"
@@ -42,6 +43,7 @@ struct MainWindow: View {
       switch self {
       case .home: "house"
       case .history: "clock"
+      case .notetaker: "person.2.wave.2"
       case .insights: "chart.bar"
       case .dictionary: "character.book.closed"
       case .snippets: "text.badge.plus"
@@ -68,6 +70,7 @@ struct MainWindow: View {
         switch selection {
         case .home: HomeView()
         case .history: HistoryView()
+        case .notetaker: NotetakerView()
         case .insights: InsightsView()
         case .dictionary: DictionaryView()
         case .snippets: SnippetsView()

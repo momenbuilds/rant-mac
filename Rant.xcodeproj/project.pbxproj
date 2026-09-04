@@ -25,6 +25,7 @@
 		D21303E13218D64F499077C4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6215D4531E1063A40D8A2D10 /* OnboardingView.swift */; };
 		E4596EC8C3742F5E142BE208 /* HierarchyDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07CCE46290E3DE647B6B82F2 /* HierarchyDiagnostic.swift */; };
 		E4EAB37F7A8A03B828A929CF /* RantCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9D4E1E13B0E11D5F2A81B7B4 /* RantCore */; };
+		E9195F34C4CD00565BC9A6D2 /* NotetakerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E0C2EB81A082A153DE2EFAE /* NotetakerView.swift */; };
 		EED0B34A571528E2234D922E /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9DC724C5939BF3ED0FDBAC9 /* HomeView.swift */; };
 		FB2804658A7EB5940E5D4C21 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 689EB884031F20394946F225 /* RootView.swift */; };
 		FC0165D004AB750E7E25A48D /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCB5F2A65986604A1C209840 /* InsightsView.swift */; };
@@ -51,6 +52,7 @@
 		4A6A68FBF9A2C346F686B20A /* ScratchpadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScratchpadView.swift; sourceTree = "<group>"; };
 		6215D4531E1063A40D8A2D10 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		689EB884031F20394946F225 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		6E0C2EB81A082A153DE2EFAE /* NotetakerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotetakerView.swift; sourceTree = "<group>"; };
 		8BFCA8100153B98BC057D6B3 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		8E56852783E5AB2E108AE2DA /* MigrateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrateView.swift; sourceTree = "<group>"; };
 		969AEB044B530E6D7A9D7AAB /* StylesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StylesView.swift; sourceTree = "<group>"; };
@@ -175,6 +177,14 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		9066189EA03F4CE5B1989C5D /* Notetaker */ = {
+			isa = PBXGroup;
+			children = (
+				6E0C2EB81A082A153DE2EFAE /* NotetakerView.swift */,
+			);
+			path = Notetaker;
+			sourceTree = "<group>";
+		};
 		9EE008512EAE79F8994EA8A6 /* Rant */ = {
 			isa = PBXGroup;
 			children = (
@@ -186,6 +196,7 @@
 				089471EF452AD21F550D59F7 /* Insights */,
 				6AA996B2AFDAC75A60AD3D11 /* MenuBar */,
 				EDC0F36C645C7CD55B6A2192 /* Migrate */,
+				9066189EA03F4CE5B1989C5D /* Notetaker */,
 				5B7FD498F5CBE55FCD5D75BB /* Onboarding */,
 				528D7E42C7CA060179D16BFB /* Recorder */,
 				E12AF6E9DB333AE54F130109 /* Scratchpad */,
@@ -342,6 +353,7 @@
 				FC0165D004AB750E7E25A48D /* InsightsView.swift in Sources */,
 				03ECE1743141BB926C962D5D /* MenuBarContent.swift in Sources */,
 				9C066602804472A46FB51A02 /* MigrateView.swift in Sources */,
+				E9195F34C4CD00565BC9A6D2 /* NotetakerView.swift in Sources */,
 				D21303E13218D64F499077C4 /* OnboardingView.swift in Sources */,
 				AC10670C7ABAD3149B03365A /* OverlayController.swift in Sources */,
 				0E501602B04A182D51754E92 /* Permissions.swift in Sources */,

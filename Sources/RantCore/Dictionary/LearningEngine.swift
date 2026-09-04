@@ -381,9 +381,12 @@ public actor LearningEngine {
   /// Similarity carries most of the weight because it is the signal that separates the
   /// two cases: "super base" against "Supabase" is one term heard wrongly, while
   /// "Thursday" against "the following Tuesday" is the user changing their mind, and
-  /// installing that as a replacement rule would rewrite every future Thursday.
+  /// installing that as a replacement rule would rewrite every future Thursday. The
+  /// weighting is set so that the default floor of 0.5 needs the two forms to be at
+  /// least half the same characters — near enough that the user could plausibly have
+  /// said one and had it written as the other.
   public static func confidence(spoken: String, written: String, occurrences: Int) -> Double {
-    let base = 0.35 + 0.5 * similarity(spoken, written)
+    let base = 0.2 + 0.6 * similarity(spoken, written)
     return min(1.0, base + 0.15 * Double(max(0, occurrences - 1)))
   }
 

@@ -164,7 +164,7 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - notes: RANT-044 shipped the protocol and a line transport only. The listener is
     deliberately separate so the protocol could be tested without sockets.
 
-- [ ] RANT-045 — Actions layer (registered capabilities, permission classes, confirmation)
+- [~] RANT-045 — Actions layer (registered capabilities, permission classes, confirmation)
   - verify: `swift test --filter ActionsTests`
 - [ ] RANT-046 — Local semantic search (embeddings, opt-in)
   - verify: `swift test --filter SemanticSearchTests`
@@ -200,5 +200,5 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `bash scripts/package.sh`
 - [ ] RANT-067 — Accessibility + VoiceOver + Reduce Motion audit
   - verify: manual matrix in docs/ACCESSIBILITY.md
-- [ ] RANT-068 — Performance instrumentation vs targets in docs/PERFORMANCE.md
+- [x] RANT-068 — Performance instrumentation vs targets in docs/PERFORMANCE.md
   - verify: `swift test --filter PerformanceTests`
