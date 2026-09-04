@@ -92,6 +92,22 @@ final class Preferences: ObservableObject {
   @Published var preferLocalCleanup: Bool { didSet { defaults.set(preferLocalCleanup, forKey: Key.preferLocalCleanup) } }
   @Published var retainAudio: Bool { didSet { defaults.set(retainAudio, forKey: Key.retainAudio) } }
   @Published var audioRetentionDays: Int { didSet { defaults.set(audioRetentionDays, forKey: Key.audioRetentionDays) } }
+
+  /// The two audio preferences as the one policy the engine sweeps against.
+  ///
+  /// The toggle and the day count were stored and displayed but never translated into
+  /// an `AudioRetentionPolicy`, and nothing ever ran a sweep — so "keep it for 24
+  /// hours" kept it forever. Deriving the policy here means the setting and the
+  /// deletion can no longer disagree.
+  var audioRetentionPolicy: AudioRetentionPolicy {
+    guard retainAudio else { return .never }
+    switch audioRetentionDays {
+    case 1: return .oneDay
+    case 7: return .sevenDays
+    case 30: return .thirtyDays
+    default: return .forever
+    }
+  }
   @Published var microphoneUniqueID: String? { didSet { defaults.set(microphoneUniqueID, forKey: Key.microphoneUniqueID) } }
   @Published var languageCode: String? { didSet { defaults.set(languageCode, forKey: Key.languageCode) } }
   @Published var playSounds: Bool { didSet { defaults.set(playSounds, forKey: Key.playSounds) } }

@@ -15,6 +15,7 @@
 		2072A7CEECA764972482479A /* StylesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969AEB044B530E6D7A9D7AAB /* StylesView.swift */; };
 		20E8D6BAE987C56241101CBA /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BFCA8100153B98BC057D6B3 /* HistoryView.swift */; };
 		23699843B8661C94990D74C3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208110D8C3C2F5EEA4BF165F /* SettingsView.swift */; };
+		316CB9F827F2CD5915329FBA /* MeetingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B32F492CF3159CDB36671E7 /* MeetingController.swift */; };
 		49550EB710BACACAFDA30A89 /* PageTourTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE89F48313D3963A85B3C19 /* PageTourTests.swift */; };
 		526CFD4D90896934162F4F97 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A9A10E7172019C35A6C864 /* Preferences.swift */; };
 		57113839F403C1A8FB2312D5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D7258A233E69A734D0B12C9 /* Theme.swift */; };
@@ -53,6 +54,7 @@
 		2EACEA5AA69091FBBEAF12DC /* RantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RantApp.swift; sourceTree = "<group>"; };
 		3CF4049609A6FD0F430BFE21 /* RantUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A6A68FBF9A2C346F686B20A /* ScratchpadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScratchpadView.swift; sourceTree = "<group>"; };
+		5B32F492CF3159CDB36671E7 /* MeetingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingController.swift; sourceTree = "<group>"; };
 		6215D4531E1063A40D8A2D10 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		689EB884031F20394946F225 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		6E0C2EB81A082A153DE2EFAE /* NotetakerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotetakerView.swift; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 		9066189EA03F4CE5B1989C5D /* Notetaker */ = {
 			isa = PBXGroup;
 			children = (
+				5B32F492CF3159CDB36671E7 /* MeetingController.swift */,
 				6E0C2EB81A082A153DE2EFAE /* NotetakerView.swift */,
 			);
 			path = Notetaker;
@@ -380,6 +383,7 @@
 				20E8D6BAE987C56241101CBA /* HistoryView.swift in Sources */,
 				EED0B34A571528E2234D922E /* HomeView.swift in Sources */,
 				FC0165D004AB750E7E25A48D /* InsightsView.swift in Sources */,
+				316CB9F827F2CD5915329FBA /* MeetingController.swift in Sources */,
 				03ECE1743141BB926C962D5D /* MenuBarContent.swift in Sources */,
 				9C066602804472A46FB51A02 /* MigrateView.swift in Sources */,
 				E9195F34C4CD00565BC9A6D2 /* NotetakerView.swift in Sources */,

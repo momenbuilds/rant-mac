@@ -16,6 +16,13 @@ final class AppModel: ObservableObject {
 
   @Published private(set) var state: DictationState = .idle
   @Published private(set) var meterHistory: [Float] = []
+  /// True while a screen is showing a level meter outside a dictation.
+  @Published private(set) var isMonitoringLevel = false
+  /// The selected sidebar page, as its raw value. Held here so the menu bar can
+  /// navigate — a view's `@State` is not reachable from a menu.
+  @Published var destination: String = "home"
+  /// Built lazily once the database is open; owns the running meeting.
+  @Published private(set) var meetingController: MeetingController?
   @Published private(set) var partialText: String = ""
   @Published private(set) var recentTranscripts: [Transcript] = []
   @Published private(set) var lastError: String?
@@ -37,7 +44,11 @@ final class AppModel: ObservableObject {
   private(set) var meetings: MeetingStore?
   private var session: DictationSession?
   private var hotkeys: HotkeyEngine?
-  private let microphone = MicrophoneCapture()
+  let microphone = MicrophoneCapture()
+
+  /// Input devices for the microphone picker, re-read each time it opens so plugging
+  /// in a headset does not require relaunching.
+  var availableMicrophones: [AudioInputDevice] { AudioDevices.inputs() }
   private let log = RantLog("App")
   private var meterTimer: Timer?
   private var cancellables: Set<AnyCancellable> = []
@@ -71,6 +82,9 @@ final class AppModel: ObservableObject {
     installHotkeys()
     refreshHistory()
     startMeterUpdates()
+    // Before anything else can add to it: audio that outlived the policy while Rant
+    // was not running should be gone by the time the window appears.
+    sweepRetainedAudio()
 
     // The event tap cannot be installed without Accessibility, and Accessibility is
     // granted in another process with no notification. Watching for it means the
@@ -119,6 +133,28 @@ final class AppModel: ObservableObject {
         self.log.info("trigger is now \(trigger.rawValue) (\(mode.rawValue)); reinstalling")
         self.installHotkeys()
       }
+      .store(in: &cancellables)
+
+    // The chosen microphone was stored in preferences and never handed to the capture,
+    // so picking one changed nothing. Applying it here means the next dictation records
+    // from the device the user chose.
+    preferences.$microphoneUniqueID
+      .removeDuplicates()
+      .receive(on: RunLoop.main)
+      .sink { [microphone] uniqueID in
+        Task { await microphone.setPreferredDevice(uniqueID) }
+      }
+      .store(in: &cancellables)
+
+    // Retention is a promise about deletion, so it has to be kept the moment the user
+    // changes it — not at the next launch. Shortening the window, or turning audio off
+    // entirely, should remove what is already on disk straight away.
+    preferences.$retainAudio
+      .combineLatest(preferences.$audioRetentionDays)
+      .dropFirst()
+      .removeDuplicates { $0 == $1 }
+      .receive(on: RunLoop.main)
+      .sink { [weak self] _, _ in self?.sweepRetainedAudio() }
       .store(in: &cancellables)
   }
 
@@ -254,6 +290,37 @@ final class AppModel: ObservableObject {
     } catch {
       log.error("could not open the database: \(error.localizedDescription)")
       lastError = "Rant could not open its database. \(error.localizedDescription)"
+    }
+  }
+
+  /// Where retained recordings live. One place, so the sweeper and the writer agree.
+  static func audioDirectory() -> URL {
+    let directory = supportDirectory().appendingPathComponent("Audio", isDirectory: true)
+    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    return directory
+  }
+
+  /// Enforce the audio retention policy.
+  ///
+  /// Called at launch and whenever the setting changes. Without this the policy was
+  /// decoration: `AudioRetention` was implemented and tested, and nothing in the app
+  /// ever called it, so audio the user had asked to be deleted after a day stayed on
+  /// disk indefinitely. Turning retention off now also clears what is already there —
+  /// switching it off should mean the recordings are gone, not merely that no new ones
+  /// arrive.
+  func sweepRetainedAudio() {
+    guard let store else { return }
+    let policy = preferences.audioRetentionPolicy
+    do {
+      let result = try AudioRetention(store: store, directory: Self.audioDirectory())
+        .sweep(policy: policy)
+      if !result.isEmpty {
+        log.info(
+          "audio sweep policy=\(policy.rawValue) deleted=\(result.filesDeleted) cleared=\(result.rowsCleared) missing=\(result.filesMissing) failed=\(result.failed)"
+        )
+      }
+    } catch {
+      log.error("audio sweep failed: \(error.localizedDescription)")
     }
   }
 
@@ -507,13 +574,43 @@ final class AppModel: ObservableObject {
   /// Screen Recording is what macOS requires for system audio, so without it the
   /// notetaker records only your side of the call. That is a real limitation and the
   /// UI says so rather than failing — a one-sided transcript is still worth having.
-  func startMeeting() {
+  /// Whether a meeting is being recorded right now.
+  var isMeetingRunning: Bool { meetingController?.isRunning ?? false }
+
+  /// Builds the notetaker's controller once the database is open.
+  ///
+  /// Lazily, because it needs the meeting store, and the store needs the database.
+  func makeMeetingControllerIfNeeded() -> MeetingController? {
+    if let meetingController { return meetingController }
+    guard let meetings else { return nil }
+    let controller = MeetingController(
+      store: meetings,
+      microphone: microphone,
+      makeProvider: { [weak self] in
+        self?.makeTranscriptionProvider() ?? UnavailableProvider(
+          reason: TranscriptionError.modelUnavailable("speech provider"))
+      },
+      makeEnhancer: { [weak self] in self?.makeEnhancementProvider() ?? NoEnhancement() },
+      // A meeting transcript is the most sensitive text Rant holds. Summarising it
+      // with a remote model is allowed only when the user has not asked for local
+      // only — the same switch that governs dictation.
+      allowOffDeviceSummary: { [weak self] in !(self?.preferences.localOnly ?? true) })
+    meetingController = controller
+    return controller
+  }
+
+  func startMeeting(title: String? = nil) {
+    // Asked for, not required: without it Rant records the user's side only, which is
+    // a usable meeting rather than a failed one.
     if !permissions.screenRecording.isGranted {
       permissions.requestScreenRecording()
     }
-    lastError = permissions.screenRecording.isGranted
-      ? nil
-      : "Rant will record only your side of this call until Screen Recording is granted."
+    guard let controller = makeMeetingControllerIfNeeded() else {
+      lastError = "Rant could not open its database, so it cannot record a meeting."
+      return
+    }
+    lastError = nil
+    controller.start(title: title)
   }
 
   // MARK: - Import and export
@@ -604,12 +701,30 @@ final class AppModel: ObservableObject {
     meterTimer?.invalidate()
     meterTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
       Task { @MainActor [weak self] in
-        guard let self, self.state.isBusy else { return }
+        guard let self, self.state.isBusy || self.isMonitoringLevel else { return }
         let history = await self.microphone.meterHistory
         self.meterHistory = history
-        self.overlay.updateMeter(history)
+        if self.state.isBusy { self.overlay.updateMeter(history) }
       }
     }
+  }
+
+  /// The current input level, for a meter that is not part of a dictation.
+  var meterLevel: Float { meterHistory.last ?? 0 }
+
+  /// Keep the level updating while a screen is showing a meter.
+  ///
+  /// Settings needs to prove the chosen microphone is the one being heard, and that
+  /// has to work before any dictation has happened — otherwise "is this thing on?" can
+  /// only be answered by recording something.
+  func beginLevelMonitoring() {
+    isMonitoringLevel = true
+    Task { [microphone] in try? await microphone.prepare() }
+  }
+
+  func endLevelMonitoring() {
+    isMonitoringLevel = false
+    meterHistory = []
   }
 
   // MARK: - Diagnostics

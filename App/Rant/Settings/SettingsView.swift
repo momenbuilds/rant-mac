@@ -95,6 +95,30 @@ struct SettingsView: View {
   }
 }
 
+/// A live input level, so "is this microphone working" has an answer that does not
+/// require recording something and reading it back.
+struct MicrophoneMeter: View {
+  let level: Float
+  private let segments = 18
+
+  var body: some View {
+    HStack(spacing: 2) {
+      ForEach(0..<segments, id: \.self) { index in
+        // A little gamma so quiet speech still moves several segments; a linear meter
+        // on RMS looks broken at conversational volume.
+        let threshold = Float(index + 1) / Float(segments)
+        let scaled = min(1, powf(max(level, 0), 0.5) * 1.6)
+        RoundedRectangle(cornerRadius: 1, style: .continuous)
+          .fill(scaled >= threshold ? Theme.clay : Theme.hairline)
+          .frame(width: 3, height: index < segments - 4 ? 9 : 12)
+      }
+    }
+    .animation(.linear(duration: 0.05), value: level)
+    .accessibilityLabel("Input level")
+    .accessibilityValue("\(Int(min(max(level, 0), 1) * 100)) percent")
+  }
+}
+
 /// Pulled out of the picker because the whole chain inline defeated the type checker.
 private struct SettingsPaneLabel: View {
   let pane: SettingsPane
@@ -218,6 +242,26 @@ struct SpeechSettings: View {
           .font(.caption).foregroundStyle(.secondary)
       }
 
+      // The device preference existed and was never handed to the capture, and there
+      // was nowhere to set it. Both halves are here now: the list, and a meter that
+      // proves the chosen microphone is the one being heard.
+      Section("Microphone") {
+        Picker("Input", selection: Binding(
+          get: { preferences.microphoneUniqueID ?? "" },
+          set: { preferences.microphoneUniqueID = $0.isEmpty ? nil : $0 })
+        ) {
+          Text("System default").tag("")
+          ForEach(model.availableMicrophones) { device in
+            Text(device.name).tag(device.uniqueID)
+          }
+        }
+        LabeledContent("Level") {
+          MicrophoneMeter(level: model.meterLevel)
+        }
+        Text("The meter moves when Rant can hear you. If it stays flat, macOS has not granted the microphone, or the wrong input is selected.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
       Section("Language") {
         Picker("Language", selection: Binding(
           get: { preferences.languageCode ?? "auto" },
@@ -237,6 +281,10 @@ struct SpeechSettings: View {
       }
     }
     .formStyle(.grouped)
+    // Only while this pane is on screen: keeping the engine warm for a meter nobody
+    // is looking at would hold the microphone open for no reason.
+    .onAppear { model.beginLevelMonitoring() }
+    .onDisappear { model.endLevelMonitoring() }
   }
 
   private func save() {

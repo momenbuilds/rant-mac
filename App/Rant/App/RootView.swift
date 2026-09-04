@@ -27,7 +27,15 @@ struct RootView: View {
 struct MainWindow: View {
   @EnvironmentObject private var model: AppModel
   @EnvironmentObject private var preferences: Preferences
-  @State private var selection: Destination = .home
+  /// Which page is showing, held on the model rather than in `@State`.
+  ///
+  /// The menu bar has to be able to open History and Settings, and it cannot reach a
+  /// view's private state. Keeping the selection on the model is what lets those menu
+  /// items do something instead of merely raising the window.
+  private var selection: Destination {
+    get { Destination(rawValue: model.destination) ?? .home }
+    nonmutating set { model.destination = newValue.rawValue }
+  }
 
   enum Destination: String, CaseIterable, Identifiable {
     case home, history, notetaker, insights
@@ -188,14 +196,23 @@ struct MainWindow: View {
     .padding(.bottom, 16)
   }
 
+  /// Asked of the registry rather than of the API key.
+  ///
+  /// "Ready" used to mean local-only-or-a-key, which was wrong in both directions once
+  /// a real local engine existed: the on-device engine needs no key, and local-only
+  /// without a usable local engine is not ready at all.
   private var ready: Bool {
-    preferences.localOnly || model.hasAPIKey
+    model.speechProviderRegistry()
+      .descriptor(for: preferences.speechProvider)?.isSelectable ?? false
   }
 
   private var providerSummary: String {
-    if preferences.localOnly { return "Local only — nothing leaves this Mac" }
-    if !model.hasAPIKey { return "No API key yet" }
-    return "AssemblyAI · your key"
+    guard
+      let descriptor = model.speechProviderRegistry()
+        .descriptor(for: preferences.speechProvider)
+    else { return "No speech provider selected" }
+    if let explanation = descriptor.status.explanation { return explanation }
+    return "\(descriptor.displayName) · \(descriptor.privacyLabel.lowercased())"
   }
 
   // MARK: - Detail
