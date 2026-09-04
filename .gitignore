@@ -1,0 +1,12 @@
+.DS_Store
+.build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+build/
+dist/
+.env
+*.local
+Models/*.bin
+Models/*.gguf
+.claude/settings.local.json
