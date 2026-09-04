@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check.sh
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_16.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      # The same script contributors run locally. If it passes here and fails there,
+      # that is a bug in the script, not a difference to work around.
+      - name: Run the full check
+        run: bash scripts/check.sh
+
+  secrets:
+    name: no secrets in the diff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # PRs never get a real API key. Every test in this repository runs against
+      # mocks and fixtures, so there is nothing for a fork to exfiltrate — and no
+      # secret is exposed to pull_request workflows.
+      - name: Scan the diff for key-shaped strings
+        run: |
+          base="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
+          added=$(git diff "$base"...HEAD --unified=0 | grep '^+' || true)
+          if echo "$added" \
+            | grep -vE 'not-a-real-key' \
+            | grep -qE '(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,})'; then
+            echo "A key-shaped string was added. If it is a deliberate test fixture,"
+            echo "annotate the line with 'not-a-real-key'."
+            exit 1
+          fi
+          echo "clean"
+
+  licence:
+    name: licence boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Rant is MIT; VoiceInk is GPLv3. Copying in that direction is not permitted,
+      # so a reference to it appearing inside the engine is worth a human look.
+      # See docs/DECISIONS.md D-001.
+      - name: No GPL-derived code in Sources/
+        run: |
+          if grep -rniE 'voiceink|beingpax' Sources/ App/ 2>/dev/null; then
+            echo "A VoiceInk reference appeared in source. Rant is MIT and VoiceInk is"
+            echo "GPLv3 — behaviour may be studied, code may not be copied."
+            exit 1
+          fi
+          echo "clean"

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where the finished text should end up.
-public enum InjectionTarget: Equatable, Sendable {
+public enum InjectionTarget: String, Equatable, Sendable, Codable {
   /// The app that had focus when dictation started.
   case cursor
   /// Clipboard only — the user will paste it themselves.
