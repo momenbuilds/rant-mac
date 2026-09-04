@@ -58,9 +58,18 @@ final class AppModel: ObservableObject {
     startMeterUpdates()
   }
 
+  /// True when XCUITest launched us. A UI test must never read or write the
+  /// developer's real dictation history, so this switches the database to memory and
+  /// starts from first-run state.
+  static var isUITesting: Bool {
+    UserDefaults.standard.bool(forKey: "rant-ui-testing")
+  }
+
   private func openDatabase() {
     do {
-      let url = Self.supportDirectory().appendingPathComponent("rant.sqlite")
+      let url: URL? = Self.isUITesting
+        ? nil
+        : Self.supportDirectory().appendingPathComponent("rant.sqlite")
       let database = try Database(url: url)
       try Migrations.migrate(database)
       self.database = database

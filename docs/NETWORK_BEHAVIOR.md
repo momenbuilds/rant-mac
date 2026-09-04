@@ -40,8 +40,20 @@ tokens, private key blocks, long random hex/base64 runs) with `[redacted]`.
 disables cloud fallback entirely — a provider failure surfaces as an error rather
 than silently reaching for the network.
 
-Model weights are downloaded once, on explicit user action, from the Hugging Face
-URL shown in the UI before the download starts.
+Model weights are downloaded once, on explicit user action:
+
+| When | Request | Carries |
+|---|---|---|
+| you press Download on a local model | `GET https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-*.bin` | nothing but the request itself — no key, no identifier, no telemetry |
+
+The exact URL, the file size and the RAM the model needs are shown before the
+download starts, and nothing is fetched until you press the button. The download is
+verified by size and by GGML/GGUF magic bytes, which catches both a truncated
+transfer and a captive portal's HTML page saved under a `.bin` name.
+
+This is the only host Rant contacts that is not your chosen speech provider, and it
+is contacted only when you ask for an offline model. Once downloaded, the local
+provider makes no network requests at all.
 
 ## Enhancement, when enabled
 

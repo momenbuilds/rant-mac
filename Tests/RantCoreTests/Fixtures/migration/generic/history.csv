@@ -1,0 +1,4 @@
+text,created_at,app,duration_ms
+"Hello, world.",2024-02-02T09:00:00Z,Mail,1200
+"He said ""ship it"" and left.",2024-02-02T09:05:00Z,Slack,2400
+,2024-02-02T09:10:00Z,Notes,900

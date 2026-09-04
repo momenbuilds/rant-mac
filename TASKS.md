@@ -119,30 +119,30 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `swift test --filter ContextTests`
 - [x] RANT-021 — Cleanup levels (None/Light/Medium/High) + spoken punctuation + backtracking
   - verify: `swift test --filter CleanupTests`
-- [ ] RANT-022 — Enhancement providers (Apple FM, Ollama/OpenAI-compatible, none)
+- [x] RANT-022 — Enhancement providers (Apple FM, Ollama/OpenAI-compatible, none)
   - verify: `swift test --filter EnhancementTests`
-- [~] RANT-023 — Personal dictionary (boosts, replacements, casing, import/export)
+- [x] RANT-023 — Personal dictionary (boosts, replacements, casing, import/export)
   - verify: `swift test --filter DictionaryTests`
-- [ ] RANT-024 — Snippets (voice triggers, expansion inside longer dictation)
+- [x] RANT-024 — Snippets (voice triggers, expansion inside longer dictation)
   - verify: `swift test --filter SnippetTests`
-- [ ] RANT-025 — Styles + app/domain category classification
+- [x] RANT-025 — Styles + app/domain category classification
   - verify: `swift test --filter StyleTests`
-- [ ] RANT-026 — Modes (provider/prompt/context/output/triggers)
+- [x] RANT-026 — Modes (provider/prompt/context/output/triggers)
   - verify: `swift test --filter ModeTests`
 - [ ] RANT-027 — Adaptive learning from corrections (opt-in)
   - verify: `swift test --filter LearningTests`
 
 ## Phase D — Ownership
 
-- [ ] RANT-030 — Transcript history + FTS search + per-item deletion
+- [x] RANT-030 — Transcript history + FTS search + per-item deletion
   - verify: `swift test --filter HistoryTests`
-- [ ] RANT-031 — Insights (words, WPM, streak, categories, latency)
+- [x] RANT-031 — Insights (words, WPM, streak, categories, latency)
   - verify: `swift test --filter InsightsTests`
 - [ ] RANT-032 — Rant Archive export/import (portable, versioned)
   - verify: `swift test --filter ArchiveTests`
 - [ ] RANT-033 — Migration Center + adapters (Wispr, VoiceInk, Superwhisper, Otter, TXT/MD/JSON/CSV/SRT/VTT)
   - verify: `swift test --filter MigrationTests`
-- [ ] RANT-034 — Audio retention policy + cleanup job
+- [x] RANT-034 — Audio retention policy + cleanup job
   - verify: `swift test --filter RetentionTests`
 
 ## Phase E — Power
@@ -155,8 +155,15 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `swift test --filter DeveloperContextTests`
 - [ ] RANT-043 — Scratchpad (local Markdown notes, voice append)
   - verify: `swift test --filter ScratchpadTests`
-- [ ] RANT-044 — Local MCP server (opt-in, loopback, read-only default, audit log)
+- [x] RANT-044 — Local MCP server (opt-in, loopback, read-only default, audit log)
   - verify: `swift test --filter MCPTests`
+- [ ] RANT-069 — MCP loopback socket listener + stdio wiring in the app shell
+  - depends: RANT-044
+  - acceptance: the validated `MCPBindAddress` seam is actually bound; `claude mcp add` can reach it
+  - verify: `swift test --filter MCPTransportTests`
+  - notes: RANT-044 shipped the protocol and a line transport only. The listener is
+    deliberately separate so the protocol could be tested without sockets.
+
 - [ ] RANT-045 — Actions layer (registered capabilities, permission classes, confirmation)
   - verify: `swift test --filter ActionsTests`
 - [ ] RANT-046 — Local semantic search (embeddings, opt-in)
@@ -164,30 +171,30 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
 
 ## Phase F — Notetaker
 
-- [ ] RANT-050 — Meeting capture (mic + system audio via ScreenCaptureKit)
+- [x] RANT-050 — Meeting capture (mic + system audio via ScreenCaptureKit)
   - verify: `swift test --filter MeetingCaptureTests`
-- [ ] RANT-051 — Live meeting transcript + source labels + meeting state machine
+- [x] RANT-051 — Live meeting transcript + source labels + meeting state machine
   - verify: `swift test --filter MeetingTests`
-- [ ] RANT-052 — Summaries, action items, decisions, key moments
+- [x] RANT-052 — Summaries, action items, decisions, key moments
   - verify: `swift test --filter SummaryTests`
-- [ ] RANT-053 — Meeting exports (MD/TXT/JSON/SRT/VTT)
+- [x] RANT-053 — Meeting exports (MD/TXT/JSON/SRT/VTT)
   - verify: `swift test --filter MeetingExportTests`
-- [ ] RANT-054 — Calendar (EventKit, local only, join links)
+- [x] RANT-054 — Calendar (EventKit, local only, join links)
   - verify: `swift test --filter CalendarTests`
 
 ## Phase G — Hardening
 
 - [x] RANT-060 — scripts/check.sh as the definition of green
   - verify: `bash scripts/check.sh`
-- [ ] RANT-061 — CI workflow (build, unit tests, lint)
+- [x] RANT-061 — CI workflow (build, unit tests, lint)
   - verify: workflow file present + `swift build` locally
-- [ ] RANT-062 — Local STT provider (whisper.cpp; Intel-safe) behind provider protocol
+- [x] RANT-062 — Local STT provider (whisper.cpp; Intel-safe) behind provider protocol
   - verify: `swift test --filter LocalSTTTests`
-- [ ] RANT-063 — Privacy/diagnostics view + docs (PRIVACY, NETWORK_BEHAVIOR, THREAT_MODEL)
+- [x] RANT-063 — Privacy/diagnostics view + docs (PRIVACY, NETWORK_BEHAVIOR, THREAT_MODEL)
   - verify: `ls PRIVACY.md docs/NETWORK_BEHAVIOR.md docs/THREAT_MODEL.md`
-- [ ] RANT-064 — App compatibility matrix + smoke test harness
+- [x] RANT-064 — App compatibility matrix + smoke test harness
   - verify: `ls docs/APP_COMPATIBILITY.md docs/SMOKE_TEST.md scripts/smoke-test.sh`
-- [ ] RANT-065 — XCUITest suite (onboarding, navigation, CRUD flows)
+- [~] RANT-065 — XCUITest suite (onboarding, navigation, CRUD flows)
   - verify: `bash scripts/ui-test.sh`
 - [ ] RANT-066 — Packaging (.dmg / zip, ad-hoc signing, notarization docs)
   - verify: `bash scripts/package.sh`

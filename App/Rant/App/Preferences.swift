@@ -14,6 +14,15 @@ final class Preferences: ObservableObject {
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
+    // A UI test starts from first-run state unless it explicitly asked to keep what
+    // the previous launch stored — which is how the "settings persist" test works.
+    if defaults.bool(forKey: "rant-ui-testing"),
+      !defaults.bool(forKey: "rant-ui-testing-keep-preferences")
+    {
+      for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("rant.") {
+        defaults.removeObject(forKey: key)
+      }
+    }
     self.hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
     self.triggerKey = TriggerKey(rawValue: defaults.string(forKey: Key.triggerKey) ?? "") ?? .rightCommand
     self.activationMode = ActivationMode(rawValue: defaults.string(forKey: Key.activationMode) ?? "") ?? .hybrid

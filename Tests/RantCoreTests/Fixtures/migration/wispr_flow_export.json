@@ -1,0 +1,25 @@
+[
+  {
+    "flowId": "f1",
+    "asrText": "um so the api migration is done i think",
+    "formattedText": "So the API migration is done, I think.",
+    "timestamp": "2024-03-01T09:15:00Z",
+    "app": "Slack",
+    "numWords": 7,
+    "durationMs": 4200
+  },
+  {
+    "flowId": "f2",
+    "asrText": "lunch at one",
+    "formattedText": "Lunch at one.",
+    "timestamp": "2024-03-01T12:00:00Z",
+    "app": "Messages",
+    "numWords": 3,
+    "durationMs": 1500
+  },
+  {
+    "flowId": "f3",
+    "timestamp": "2024-03-01T13:00:00Z",
+    "app": "Notes"
+  }
+]

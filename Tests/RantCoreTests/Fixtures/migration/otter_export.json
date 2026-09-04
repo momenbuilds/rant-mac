@@ -1,0 +1,22 @@
+{
+  "speeches": [
+    {
+      "speech_id": "s1",
+      "title": "Weekly sync",
+      "start_time": 1709287200,
+      "end_time": 1709289000,
+      "summary": "Agreed the migration ships on Friday.",
+      "action_items": ["Ship the migration", "Update the changelog"],
+      "transcripts": [
+        { "speaker_name": "Alice", "transcript": "Let us ship on Friday.", "start_offset": 0, "end_offset": 4.2 },
+        { "speaker_name": "Bob", "transcript": "Agreed.", "start_offset": 4.2, "end_offset": 5.0 }
+      ]
+    },
+    {
+      "speech_id": "s2",
+      "title": "Empty conversation",
+      "start_time": 1709380000,
+      "transcripts": []
+    }
+  ]
+}

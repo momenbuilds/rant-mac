@@ -1,0 +1,8 @@
+{
+  "result": "Ship it on Friday.",
+  "rawResult": "ship it on friday",
+  "datetime": "2024-03-01T10:00:00Z",
+  "duration": 2.9,
+  "languageCode": "en",
+  "modelName": "large-v3"
+}

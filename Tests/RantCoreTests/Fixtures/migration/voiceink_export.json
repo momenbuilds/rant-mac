@@ -1,0 +1,20 @@
+{
+  "transcriptions": [
+    {
+      "id": "v1",
+      "text": "the build is green",
+      "enhancedText": "The build is green.",
+      "timestamp": 1709287200,
+      "duration": 3.4,
+      "transcriptionModelName": "whisper-large-v3",
+      "audioURL": "/Users/someone/Library/VoiceInk/a.wav"
+    },
+    {
+      "id": "v2",
+      "text": "remember to file the expenses",
+      "timestamp": 1709290800,
+      "duration": 2.1,
+      "transcriptionModelName": "parakeet-v2"
+    }
+  ]
+}

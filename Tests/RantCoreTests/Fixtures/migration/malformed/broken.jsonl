@@ -1,0 +1,5 @@
+{"text":"a good record","createdAt":"2024-01-01T00:00:00Z"}
+{"text":"missing brace","createdAt":"2024-01-01T00:01:00Z"
+not json at all
+{"createdAt":"2024-01-01T00:02:00Z"}
+{"text":"another good record","createdAt":"2024-01-01T00:03:00Z"}

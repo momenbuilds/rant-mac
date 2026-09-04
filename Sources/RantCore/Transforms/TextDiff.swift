@@ -156,7 +156,7 @@ public enum TextDiff {
         }
         v[k + offset] = x
         if x >= n, y >= m {
-          return runs(backtrack(a, b, trace: trace, offsetInSnapshot: true))
+          return runs(backtrack(a, b, trace: trace))
         }
         k += 2
       }
@@ -171,13 +171,24 @@ public enum TextDiff {
   /// comparison short-circuits before touching `k - 1`, and at `k == d` it never
   /// reaches for `k + 1`.
   private static func backtrack(
-    _ a: [String], _ b: [String], trace: [[Int]], offsetInSnapshot: Bool
+    _ a: [String], _ b: [String], trace: [[Int]]
   ) -> [(DiffOperation, String)] {
     var edits: [(DiffOperation, String)] = []
     var x = a.count
     var y = b.count
 
     for d in stride(from: trace.count - 1, through: 0, by: -1) {
+      // At d = 0 there is no earlier step to come from: whatever is left is the run of
+      // words the two texts started with. Asking for a predecessor here is what reads
+      // off the end of the first snapshot, which holds one diagonal and no history.
+      if d == 0 {
+        while x > 0, y > 0 {
+          x -= 1
+          y -= 1
+          edits.append((.equal, a[x]))
+        }
+        break
+      }
       let snapshot = trace[d]
       let k = x - y
       let previousK: Int

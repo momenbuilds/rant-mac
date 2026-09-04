@@ -48,12 +48,30 @@ targets:
           # over the same Accessibility grant.
           PRODUCT_BUNDLE_IDENTIFIER: dev.rant.mac.dev
           PRODUCT_NAME: Rant Dev
+  RantUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: App/RantUITests
+    dependencies:
+      - target: Rant
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.rant.mac.uitests
+        TEST_TARGET_NAME: Rant
+        GENERATE_INFOPLIST_FILE: YES
+
 schemes:
   Rant:
     build:
       targets:
         Rant: all
+        RantUITests: [test]
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - RantUITests
     archive:
       config: Release

@@ -59,7 +59,8 @@ run "competitor audit completeness" bash scripts/check-audit.sh
 check_secrets() {
   local hits
   hits=$(grep -rInE '(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,})' \
-    --include='*.swift' --include='*.sh' --include='*.yml' --include='*.plist' --include='*.md' . \
+    --include='*.swift' --include='*.sh' --include='*.yml' --include='*.plist' --include='*.md' \
+    --exclude-dir='.claude' --exclude-dir='.build' . \
     2>/dev/null | grep -v 'SecretRedactor.swift' | grep -v 'check.sh' \
     | grep -v 'not-a-real-key' || true)
   if [ -n "$hits" ]; then echo "possible secret committed:"; echo "$hits"; return 1; fi
