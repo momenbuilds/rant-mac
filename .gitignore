@@ -10,3 +10,4 @@ dist/
 Models/*.bin
 Models/*.gguf
 .claude/settings.local.json
+.claude/worktrees/
