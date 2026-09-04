@@ -14,21 +14,27 @@ final class Preferences: ObservableObject {
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
-    // A UI test starts from first-run state unless it explicitly asked to keep what
-    // the previous launch stored — which is how the "settings persist" test works.
-    if defaults.bool(forKey: "rant-ui-testing"),
-      !defaults.bool(forKey: "rant-ui-testing-keep-preferences")
-    {
-      for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("rant.") {
-        defaults.removeObject(forKey: key)
+    // Debug only, all of it. These hooks erase every setting and skip onboarding, and
+    // a release build has no business carrying a launch argument that wipes the user's
+    // configuration. The UI tests run against the Debug configuration, so gating them
+    // costs nothing and removes the footgun entirely.
+    #if DEBUG
+      // A UI test starts from first-run state unless it explicitly asked to keep what
+      // the previous launch stored — which is how the "settings persist" test works.
+      if defaults.bool(forKey: "rant-ui-testing"),
+        !defaults.bool(forKey: "rant-ui-testing-keep-preferences")
+      {
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("rant.") {
+          defaults.removeObject(forKey: key)
+        }
       }
-    }
-    // The design tour wants the main window, not onboarding. Walking a screenshot
-    // harness through seven steps to reach the screens it came to photograph is
-    // fragile for no benefit — onboarding has its own test.
-    if defaults.bool(forKey: "rant-ui-skip-onboarding") {
-      defaults.set(true, forKey: Key.hasCompletedOnboarding)
-    }
+      // The design tour wants the main window, not onboarding. Walking a screenshot
+      // harness through seven steps to reach the screens it came to photograph is
+      // fragile for no benefit — onboarding has its own test.
+      if defaults.bool(forKey: "rant-ui-skip-onboarding") {
+        defaults.set(true, forKey: Key.hasCompletedOnboarding)
+      }
+    #endif
     self.hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
     self.triggerKey = TriggerKey(rawValue: defaults.string(forKey: Key.triggerKey) ?? "") ?? .rightCommand
     self.activationMode = ActivationMode(rawValue: defaults.string(forKey: Key.activationMode) ?? "") ?? .hybrid

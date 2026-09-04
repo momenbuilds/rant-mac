@@ -187,12 +187,20 @@ final class AppModel: ObservableObject {
   /// only works on one machine is a demo that rots. This drives the same views with
   /// the same animations — only the source of the numbers differs.
   static var isDemoingOverlay: Bool {
-    UserDefaults.standard.bool(forKey: "rant-demo-overlay")
+    #if DEBUG
+      UserDefaults.standard.bool(forKey: "rant-demo-overlay")
+    #else
+      false
+    #endif
   }
 
   /// Where to write rendered frames of the recorder, if asked.
   static var gifRenderDirectory: String? {
-    UserDefaults.standard.string(forKey: "rant-render-overlay")
+    #if DEBUG
+      UserDefaults.standard.string(forKey: "rant-render-overlay")
+    #else
+      nil
+    #endif
   }
 
   /// Renders the recorder to PNG frames and exits.
@@ -292,8 +300,15 @@ final class AppModel: ObservableObject {
   /// True when XCUITest launched us. A UI test must never read or write the
   /// developer's real dictation history, so this switches the database to memory and
   /// starts from first-run state.
+  /// Debug only. A release build must not carry a launch argument that swaps the
+  /// Keychain for an in-memory store — anyone who set it would find Rant unable to see
+  /// the key they had saved, with nothing to explain why.
   static var isUITesting: Bool {
-    UserDefaults.standard.bool(forKey: "rant-ui-testing")
+    #if DEBUG
+      UserDefaults.standard.bool(forKey: "rant-ui-testing")
+    #else
+      false
+    #endif
   }
 
   private func openDatabase() {
