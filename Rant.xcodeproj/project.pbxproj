@@ -27,6 +27,7 @@
 		AC10670C7ABAD3149B03365A /* OverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C9A013536872A31BA50407 /* OverlayController.swift */; };
 		BFEF7B25ABED0F05EDA6E264 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = DD52C6823BAA8234F22CCF13 /* AppIcon.icns */; };
 		D21303E13218D64F499077C4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6215D4531E1063A40D8A2D10 /* OnboardingView.swift */; };
+		D94F59F481C61B47E94FF032 /* LearningObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7455CD026A7631417F99DD5 /* LearningObserver.swift */; };
 		DE89B0F865D4475C3AF00D8A /* MCPController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BAE54969795EEA8827A1238 /* MCPController.swift */; };
 		E283586579D98B548A6B4EBF /* TransformsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF41DDD4B08F7F7322244223 /* TransformsView.swift */; };
 		E4596EC8C3742F5E142BE208 /* HierarchyDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07CCE46290E3DE647B6B82F2 /* HierarchyDiagnostic.swift */; };
@@ -68,6 +69,7 @@
 		969AEB044B530E6D7A9D7AAB /* StylesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StylesView.swift; sourceTree = "<group>"; };
 		A6354DBAB43B57FC9FDEDC11 /* Rant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rant.entitlements; sourceTree = "<group>"; };
 		A68446C6A9C9C91BA638C19D /* OnboardingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingUITests.swift; sourceTree = "<group>"; };
+		A7455CD026A7631417F99DD5 /* LearningObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningObserver.swift; sourceTree = "<group>"; };
 		A9DC724C5939BF3ED0FDBAC9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		B1D3C1EF2EB65EE5D35FE21D /* final-audit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "final-audit"; path = .; sourceTree = SOURCE_ROOT; };
 		BCB5F2A65986604A1C209840 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
@@ -151,6 +153,7 @@
 			isa = PBXGroup;
 			children = (
 				04ABBCE9B9DF5C6AA8C79F36 /* DictionaryView.swift */,
+				A7455CD026A7631417F99DD5 /* LearningObserver.swift */,
 			);
 			path = Dictionary;
 			sourceTree = "<group>";
@@ -392,6 +395,7 @@
 				20E8D6BAE987C56241101CBA /* HistoryView.swift in Sources */,
 				EED0B34A571528E2234D922E /* HomeView.swift in Sources */,
 				FC0165D004AB750E7E25A48D /* InsightsView.swift in Sources */,
+				D94F59F481C61B47E94FF032 /* LearningObserver.swift in Sources */,
 				DE89B0F865D4475C3AF00D8A /* MCPController.swift in Sources */,
 				316CB9F827F2CD5915329FBA /* MeetingController.swift in Sources */,
 				03ECE1743141BB926C962D5D /* MenuBarContent.swift in Sources */,

@@ -11,6 +11,7 @@ struct InsightsView: View {
   @State private var daily: [DailyUsage] = []
   @State private var categories: [CategoryUsage] = []
   @State private var range = 30
+  @State private var profile: VoiceProfile?
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.large) {
@@ -26,6 +27,7 @@ struct InsightsView: View {
           categoryBreakdown
         }
         streakGrid(summary)
+        if let profile, profile.sampleSize > 0 { voiceProfile(profile) }
       } else {
         Card {
           EmptyState(
@@ -180,11 +182,86 @@ struct InsightsView: View {
     return String(format: "%.1fh", seconds / 3_600)
   }
 
+  /// How you actually speak, worked out from your own transcripts.
+  ///
+  /// `VoiceProfileBuilder` computed all of this and nothing displayed it. Every number
+  /// here is a count over local rows — speaking rate, the fillers you actually use, the
+  /// terms you keep correcting. Deliberately not a personality: the master prompt (§22)
+  /// asks for practical and explainable, and "you are an assertive communicator" is
+  /// neither.
+  private func voiceProfile(_ profile: VoiceProfile) -> some View {
+    Section2(
+      "Your voice",
+      subtitle: "From your last \(profile.sampleSize) dictations, on this Mac."
+    ) {
+      HStack(alignment: .top, spacing: Theme.Spacing.medium) {
+        Card {
+          VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+            Stat(
+              value: "\(Int(profile.medianWordsPerMinute))",
+              label: "Median words per minute")
+            Text("Half your dictations are faster than this and half are slower, which describes you better than an average a single long ramble can move.")
+              .font(.system(size: 11.5)).foregroundStyle(Theme.inkMuted)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+        }
+
+        Card {
+          VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+            Text("FILLERS RANT REMOVES")
+              .font(Theme.label).tracking(0.7).foregroundStyle(Theme.inkFaint)
+            if profile.fillerWords.isEmpty {
+              Text("None worth mentioning.")
+                .font(.system(size: 12)).foregroundStyle(Theme.inkMuted)
+            } else {
+              ForEach(Array(profile.fillerWords.prefix(5)), id: \.term) { filler in
+                HStack {
+                  Text(filler.term).font(.system(size: 12.5)).foregroundStyle(Theme.ink)
+                  Spacer()
+                  Text("\(filler.count)")
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(Theme.inkMuted)
+                }
+              }
+              Text(String(format: "%.1f per hundred words", profile.fillersPerHundredWords))
+                .font(.system(size: 11)).foregroundStyle(Theme.inkFaint)
+            }
+          }
+        }
+
+        Card {
+          VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+            Text("TERMS YOU CORRECT")
+              .font(Theme.label).tracking(0.7).foregroundStyle(Theme.inkFaint)
+            if profile.correctedTerms.isEmpty {
+              Text("Nothing yet. Add dictionary entries and they show up here.")
+                .font(.system(size: 12)).foregroundStyle(Theme.inkMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+              ForEach(Array(profile.correctedTerms.prefix(5)), id: \.corrected) { term in
+                HStack(spacing: 6) {
+                  Text(term.heard).font(.system(size: 12)).foregroundStyle(Theme.inkMuted)
+                  Image(systemName: "arrow.right")
+                    .font(.system(size: 9)).foregroundStyle(Theme.inkFaint)
+                    .accessibilityHidden(true)
+                  Text(term.corrected)
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.ink)
+                  Spacer()
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   private func reload() {
     guard let database = model.databaseHandle else { return }
     let engine = InsightsEngine(database: database)
     summary = try? engine.summary()
     daily = (try? engine.dailySeries(days: range)) ?? []
     categories = (try? engine.usageByCategory(days: range)) ?? []
+    profile = try? VoiceProfileBuilder(database: database).build()
   }
 }

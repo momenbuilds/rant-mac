@@ -594,6 +594,9 @@ struct AdvancedSettings: View {
           .font(.caption).foregroundStyle(.secondary)
 
         Toggle("Learn from my corrections", isOn: $preferences.learnFromCorrections)
+          .onChange(of: preferences.learnFromCorrections) { _, on in
+            model.makeLearningIfNeeded()?.update(enabled: on)
+          }
         Text("After Rant inserts text, it briefly watches the same field for edits and proposes a dictionary rule. Only the text Rant inserted and the part you changed are compared — never the rest of the document — and nothing is saved without you accepting it.")
           .font(.caption).foregroundStyle(.secondary)
       }

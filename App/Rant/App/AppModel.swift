@@ -29,6 +29,8 @@ final class AppModel: ObservableObject {
   @Published private(set) var mcpController: MCPController?
   /// Upcoming calendar events, for the notetaker. Empty until permission is granted.
   @Published private(set) var upcomingEvents: [CalendarEvent] = []
+  /// Watches for corrections and proposes dictionary rules. Opt-in.
+  @Published private(set) var learning: LearningObserver?
 
   private let calendar = EventKitCalendar()
   @Published private(set) var partialText: String = ""
@@ -434,9 +436,13 @@ final class AppModel: ObservableObject {
     case .failure(let message, _):
       lastError = message
       overlay.show(state: state)
-    case .success:
+    case .success(let text):
       refreshHistory()
       overlay.show(state: state)
+      // Only if the user asked for it. The observer is not even built otherwise.
+      if preferences.learnFromCorrections {
+        makeLearningIfNeeded()?.noteInsertion(text)
+      }
     default:
       overlay.show(state: state)
     }
@@ -641,6 +647,22 @@ final class AppModel: ObservableObject {
         database: database, settings: preferences.mcpSettings)
     }
     mcpController?.apply(preferences.mcpSettings)
+  }
+
+  // MARK: - Learning from corrections
+
+  /// Built once the database is open. Does nothing until the user opts in.
+  func makeLearningIfNeeded() -> LearningObserver? {
+    if let learning { return learning }
+    guard let database else { return nil }
+    let observer = LearningObserver(
+      engine: LearningEngine(
+        database: database,
+        settings: LearningSettings(enabled: preferences.learnFromCorrections)),
+      context: AccessibilityContextProvider(),
+      contextSettings: { [weak self] in self?.preferences.contextSettings ?? .default })
+    learning = observer
+    return observer
   }
 
   // MARK: - Calendar
