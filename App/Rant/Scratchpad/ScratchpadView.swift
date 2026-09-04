@@ -29,7 +29,10 @@ struct ScratchpadView: View {
           List(shown, selection: $selection) { note in
             VStack(alignment: .leading, spacing: 2) {
               HStack {
-                if note.pinned { Image(systemName: "pin.fill").font(.caption2).foregroundStyle(Theme.accent) }
+                if note.pinned {
+                  Image(systemName: "pin.fill").font(.caption2).foregroundStyle(Theme.accent)
+                    .accessibilityLabel("Pinned")
+                }
                 Text(note.title.isEmpty ? "Untitled" : note.title).fontWeight(.medium)
               }
               Text(note.body.prefix(80))

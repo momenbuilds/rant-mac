@@ -65,7 +65,11 @@ struct HomeView: View {
     _ copy: PermissionCopy, pane: Permissions.Pane, action: @escaping () -> Void
   ) -> some View {
     HStack(alignment: .top, spacing: Theme.Spacing.small) {
-      Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Theme.accent)
+      // Decorative: the row's text already says a permission is missing, so
+      // announcing the icon as well just makes VoiceOver read it twice.
+      Image(systemName: "exclamationmark.circle.fill")
+        .foregroundStyle(Theme.accent)
+        .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         Text(copy.title).font(.callout.weight(.medium))
         Text(copy.why).font(.caption).foregroundStyle(.secondary)
@@ -156,6 +160,7 @@ struct TranscriptRow: View {
       } label: {
         Image(systemName: "ellipsis.circle")
       }
+      .accessibilityLabel("Actions for this dictation")
       .menuStyle(.borderlessButton)
       .menuIndicator(.hidden)
       .frame(width: 28)

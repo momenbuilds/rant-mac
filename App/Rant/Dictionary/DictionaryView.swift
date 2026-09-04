@@ -70,7 +70,10 @@ struct DictionaryView: View {
       VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 6) {
           Text(entry.spoken).foregroundStyle(.secondary)
+          // Decorative: the accessibility label below reads "X becomes Y", which is
+          // clearer than announcing an arrow between two words.
           Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
           Text(entry.written).fontWeight(.medium)
         }
         HStack(spacing: 6) {
@@ -98,11 +101,14 @@ struct DictionaryView: View {
           if let id = entry.id { try? model.vocabulary?.deleteEntry(id: id); reload() }
         }
       } label: { Image(systemName: "ellipsis.circle") }
+      .accessibilityLabel("Actions for this entry")
       .menuStyle(.borderlessButton)
       .menuIndicator(.hidden)
       .frame(width: 28)
     }
     .padding(.vertical, 4)
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel("\(entry.spoken) becomes \(entry.written)")
   }
 
   private func newEntry() {

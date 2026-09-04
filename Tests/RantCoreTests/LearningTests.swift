@@ -245,18 +245,19 @@ final class LearningTests: XCTestCase {
     let store = VocabularyStore(database: database)
 
     await engine.noteInsertion(inserted, context: context(), at: now)
-    let proposal = try XCTUnwrap(
-      try await engine.observeEdit(
-        fieldText: corrected, context: context(), at: now.addingTimeInterval(2)))
+    let observed = try await engine.observeEdit(
+      fieldText: corrected, context: context(), at: now.addingTimeInterval(2))
+    let proposal = try XCTUnwrap(observed)
     XCTAssertEqual(try store.entries(), [], "a proposal must not change the dictionary")
 
     let id = try XCTUnwrap(proposal.id)
-    let entry = try XCTUnwrap(try await engine.accept(id: id))
+    let accepted = try await engine.accept(id: id)
+    let entry = try XCTUnwrap(accepted)
     XCTAssertEqual(entry.spoken, "super base")
     XCTAssertEqual(entry.written, "Supabase")
     XCTAssertEqual(try store.entries().map(\.written), ["Supabase"])
-    let accepted = try await engine.candidate(id: id)
-    XCTAssertEqual(accepted?.status, .accepted)
+    let stored = try await engine.candidate(id: id)
+    XCTAssertEqual(stored?.status, .accepted)
     let pending = try await engine.candidates()
     XCTAssertTrue(pending.isEmpty)
   }
@@ -266,9 +267,9 @@ final class LearningTests: XCTestCase {
     let engine = engine(database)
 
     await engine.noteInsertion(inserted, context: context(), at: now)
-    let proposal = try XCTUnwrap(
-      try await engine.observeEdit(
-        fieldText: corrected, context: context(), at: now.addingTimeInterval(2)))
+    let observed = try await engine.observeEdit(
+      fieldText: corrected, context: context(), at: now.addingTimeInterval(2))
+    let proposal = try XCTUnwrap(observed)
     let id = try XCTUnwrap(proposal.id)
     try await engine.reject(id: id)
 

@@ -159,6 +159,7 @@ struct MigrateView: View {
   private func promise(_ text: String) -> some View {
     HStack(alignment: .top, spacing: 8) {
       Image(systemName: "xmark.shield").font(.caption).foregroundStyle(Theme.success)
+        .accessibilityHidden(true)
       Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
     }
   }

@@ -41,6 +41,7 @@ struct RantApp: App {
       // The menu bar icon is the app's only always-visible surface, so it carries the
       // one piece of state that matters: whether the microphone is live.
       Image(systemName: model.state.isBusy ? "waveform.circle.fill" : "waveform")
+        .accessibilityLabel(model.state.isBusy ? "Rant is listening" : "Rant")
     }
   }
 }

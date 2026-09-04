@@ -35,6 +35,7 @@ struct NotetakerView: View {
           Divider()
           Button("Delete", role: .destructive) { deleteSelected() }
         } label: { Label("More", systemImage: "ellipsis.circle") }
+        .accessibilityLabel("Meeting actions")
         .disabled(current == nil)
       }
     }

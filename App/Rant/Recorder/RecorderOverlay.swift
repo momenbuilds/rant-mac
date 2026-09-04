@@ -136,6 +136,7 @@ struct RecorderOverlay: View {
     } label: {
       Image(systemName: "xmark")
         .font(.system(size: 10, weight: .bold))
+        .accessibilityHidden(true)
         .frame(width: 20, height: 20)
         .background(.quaternary, in: Circle())
     }

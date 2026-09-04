@@ -255,10 +255,17 @@ public actor LearningEngine {
   ///
   /// The field may be an entire document, so the insertion is located first and only
   /// that region is compared. Locating is done by anchor voting: every inserted word
-  /// that is not repeated all over the field proposes an offset, and the offset with
-  /// the most votes wins. That costs one linear pass over the field, which matters
-  /// because this runs while the user is typing — a scan comparing every position
-  /// against every position would turn a long email into a visible stall.
+  /// that is not repeated all over the field proposes an offset, and the offsets with
+  /// the most votes are tried in turn. That costs one linear pass over the field,
+  /// which matters because this runs while the user is typing — a scan comparing every
+  /// position against every position would turn a long email into a visible stall.
+  ///
+  /// Several offsets are tried rather than only the winner, because the correction
+  /// itself skews the vote: shortening "super base" to "Supabase" shifts every word
+  /// after it by one, so the words *following* the change vote for an offset one
+  /// earlier than the true start, and they can outvote the words before it. Taking
+  /// that offset would drag a word of the surrounding document into the region and the
+  /// correction would be thrown away as a rewrite — which is how this was found.
   ///
   /// The comparison itself is `TextDiff`, so a substitution surrounded by unchanged
   /// words is found without this file re-implementing a diff. The run pattern is then
@@ -269,9 +276,24 @@ public actor LearningEngine {
     inserted: [String], field: [String], maximumWords: Int
   ) -> (spoken: [String], written: [String], region: Range<Int>)? {
     guard !inserted.isEmpty, !field.isEmpty else { return nil }
-    guard let offset = alignmentOffset(inserted: inserted, field: field) else { return nil }
+    var tried: Set<Int> = []
+    for offset in alignmentOffsets(inserted: inserted, field: field) {
+      let start = max(0, offset)
+      guard tried.insert(start).inserted else { continue }
+      if let found = substitution(
+        inserted: inserted, field: field, startingAt: start, maximumWords: maximumWords)
+      {
+        return found
+      }
+    }
+    return nil
+  }
 
-    let start = max(0, offset)
+  /// One attempt, at a known start. Kept separate so trying a second offset costs a
+  /// second bounded scan rather than a second pass over the field.
+  static func substitution(
+    inserted: [String], field: [String], startingAt start: Int, maximumWords: Int
+  ) -> (spoken: [String], written: [String], region: Range<Int>)? {
     guard start < field.count else { return nil }
 
     // The corrected region can differ in length from the insertion only by the size of
@@ -329,8 +351,12 @@ public actor LearningEngine {
   /// slower and less accurate.
   static let maximumAnchorOccurrences = 4
 
-  /// How far into the field the insertion starts, by vote.
-  static func alignmentOffset(inserted: [String], field: [String]) -> Int? {
+  /// How many offsets are worth trying. Small on purpose: each one costs another
+  /// bounded scan and another diff, and past the first few the votes are noise.
+  static let maximumOffsetCandidates = 4
+
+  /// Where the insertion might start in the field, best-supported first.
+  static func alignmentOffsets(inserted: [String], field: [String]) -> [Int] {
     var positions: [String: [Int]] = [:]
     positions.reserveCapacity(field.count)
     for (index, word) in field.enumerated() {
@@ -343,19 +369,12 @@ public actor LearningEngine {
       for position in found { votes[position - index, default: 0] += 1 }
     }
 
-    var best: (offset: Int, count: Int)?
-    for (offset, count) in votes {
-      guard let current = best else {
-        best = (offset, count)
-        continue
-      }
-      // Most votes wins; the earliest offset breaks a tie, so the answer does not
-      // depend on the order a dictionary happens to iterate in.
-      if count > current.count || (count == current.count && offset < current.offset) {
-        best = (offset, count)
-      }
+    // Most votes wins; the earliest offset breaks a tie, so the answer does not depend
+    // on the order a dictionary happens to iterate in.
+    return votes.sorted {
+      $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key
     }
-    return best?.offset
+    .prefix(maximumOffsetCandidates).map(\.key)
   }
 
   // MARK: - Scoring

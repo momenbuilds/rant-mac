@@ -151,9 +151,12 @@ struct OnboardingView: View {
     icon: String, title: String, subtitle: String?, @ViewBuilder content: () -> Content
   ) -> some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+      // A large decorative glyph above the heading. The heading says what the step
+      // is; announcing the icon adds nothing.
       Image(systemName: icon)
         .font(.system(size: 34, weight: .light))
         .foregroundStyle(Theme.accent)
+        .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 4) {
         Text(title).font(.largeTitle.weight(.semibold))
         if let subtitle {
@@ -197,6 +200,7 @@ struct OnboardingView: View {
       HStack(alignment: .top, spacing: Theme.Spacing.small) {
         Image(systemName: selected ? "largecircle.fill.circle" : "circle")
           .foregroundStyle(selected ? Theme.accent : .secondary)
+          .accessibilityHidden(true)
         VStack(alignment: .leading, spacing: 4) {
           HStack {
             Text(title).font(.callout.weight(.medium))
@@ -216,11 +220,14 @@ struct OnboardingView: View {
           .strokeBorder(selected ? AnyShapeStyle(Theme.accent.opacity(0.5)) : AnyShapeStyle(.separator), lineWidth: 1))
     }
     .buttonStyle(.plain)
+    .accessibilityElement(children: .combine)
+    .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
   }
 
   private func bullet(_ text: String) -> some View {
     HStack(alignment: .top, spacing: 8) {
       Image(systemName: "checkmark").font(.caption).foregroundStyle(Theme.success)
+        .accessibilityHidden(true)
       Text(text).fixedSize(horizontal: false, vertical: true)
     }
   }
