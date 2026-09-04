@@ -134,6 +134,24 @@ public enum MCPCollection: String, Sendable, Codable, CaseIterable {
   /// Not a collection the user picks: the class every write-shaped tool belongs to,
   /// gated by `allowWrite` instead.
   case control
+
+  /// The collections a user can expose, which is everything except `control` — that
+  /// one is governed by its own switch and listing it twice would be misleading.
+  public static var selectable: [MCPCollection] {
+    allCases.filter { $0 != .control }
+  }
+
+  /// Named for what an agent would be able to read, not for the table.
+  public var displayName: String {
+    switch self {
+    case .transcripts: "Everything I have dictated"
+    case .meetings: "My meeting transcripts"
+    case .notes: "My scratchpad notes"
+    case .stats: "My usage statistics"
+    case .context: "What I am working on right now"
+    case .control: "Start and stop dictation"
+    }
+  }
 }
 
 /// What the user has switched on. Every default here is the closed one.

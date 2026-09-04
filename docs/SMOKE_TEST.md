@@ -111,3 +111,29 @@ Record results in `docs/APP_COMPATIBILITY.md`.
 Note the build (`git rev-parse --short HEAD`), macOS version, and machine
 architecture. An issue that only reproduces on Intel or only on Apple Silicon is worth
 knowing about.
+
+## What is now automated, and what is still not
+
+Two legs of insertion are covered by opt-in tests that use the real injector against a
+real application. Run them with:
+
+```
+bash scripts/injection-smoke.sh
+```
+
+| Leg | Covered by | Status |
+|---|---|---|
+| Accessibility insertion, end to end into TextEdit | `InjectionSmokeTests` | ✅ text lands and is read back out of TextEdit |
+| The synthesised ⌘V itself, and clipboard save/restore | `PasteKeystrokeTests` | ✅ runs cleanly, clipboard handed back unchanged |
+| ⌘V landing *in another application* | — | **not automated** |
+
+The last row is the honest gap. Reading a document back needs `NSAppleScript` and a run
+loop that a command-line test process does not have; the attempt aborted the entire
+suite with a malloc error, and a test that takes the suite down with it is worse than a
+gap somebody can read about. It stays a manual step in the matrix above.
+
+Both tests refuse to run unless TextEdit is genuinely frontmost. A synthesised ⌘V goes
+wherever focus actually is, and an early version of this harness pasted into a browser
+because focus had moved on — so the guard skips rather than typing into whatever
+happens to be in front.
+

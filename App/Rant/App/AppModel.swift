@@ -16,6 +16,29 @@ final class AppModel: ObservableObject {
 
   @Published private(set) var state: DictationState = .idle
   @Published private(set) var meterHistory: [Float] = []
+  /// True while a screen is showing a level meter outside a dictation.
+  @Published private(set) var isMonitoringLevel = false
+  /// The selected sidebar page, as its raw value. Held here so the menu bar can
+  /// navigate — a view's `@State` is not reachable from a menu.
+  @Published var destination: String = "home"
+  /// Built lazily once the database is open; owns the running meeting.
+  @Published private(set) var meetingController: MeetingController?
+  /// Owns the transform panel and its hotkey.
+  @Published private(set) var transformController: TransformController?
+  /// Owns the command-mode panel and its hotkey.
+  @Published private(set) var commandController: CommandController?
+  /// Owns the local MCP server. Built only once the database is open.
+  @Published private(set) var mcpController: MCPController?
+  /// Upcoming calendar events, for the notetaker. Empty until permission is granted.
+  @Published private(set) var upcomingEvents: [CalendarEvent] = []
+  /// Watches for corrections and proposes dictionary rules. Opt-in.
+  @Published private(set) var learning: LearningObserver?
+  /// The registered capabilities a voice can cause, and the way to run one.
+  @Published private(set) var actions: ActionsController?
+  /// Local meaning-based recall, built lazily and only when asked for.
+  @Published private(set) var semantic: SemanticIndex?
+
+  private let calendar = EventKitCalendar()
   @Published private(set) var partialText: String = ""
   @Published private(set) var recentTranscripts: [Transcript] = []
   @Published private(set) var lastError: String?
@@ -37,12 +60,18 @@ final class AppModel: ObservableObject {
   private(set) var meetings: MeetingStore?
   private var session: DictationSession?
   private var hotkeys: HotkeyEngine?
-  private let microphone = MicrophoneCapture()
+  let microphone = MicrophoneCapture()
+
+  /// Input devices for the microphone picker, re-read each time it opens so plugging
+  /// in a headset does not require relaunching.
+  var availableMicrophones: [AudioInputDevice] { AudioDevices.inputs() }
   private let log = RantLog("App")
   private var meterTimer: Timer?
   private var cancellables: Set<AnyCancellable> = []
   /// The permission-free fallback, used while Accessibility is missing.
   private var fallbackHotkey: CarbonHotkey?
+  private var transformHotkey: CarbonHotkey?
+  private var commandHotkey: CarbonHotkey?
 
   /// Presenting the overlay is a window operation, so it is owned by the controller
   /// rather than by a SwiftUI scene — a floating recorder must not steal focus, and
@@ -69,8 +98,17 @@ final class AppModel: ObservableObject {
     openDatabase()
     buildSession()
     installHotkeys()
+    installTransformHotkey()
+    installCommandHotkey()
     refreshHistory()
     startMeterUpdates()
+    // Before anything else can add to it: audio that outlived the policy while Rant
+    // was not running should be gone by the time the window appears.
+    sweepRetainedAudio()
+    // Starts nothing unless the user has switched it on; `apply` stops as readily as
+    // it starts.
+    applyMCPSettings()
+    actions = ActionsController(notes: notes)
 
     // The event tap cannot be installed without Accessibility, and Accessibility is
     // granted in another process with no notification. Watching for it means the
@@ -99,6 +137,7 @@ final class AppModel: ObservableObject {
 
     if Self.isDemoingOverlay { startOverlayDemo() }
     if let directory = Self.gifRenderDirectory { renderOverlayFrames(into: directory) }
+    if let directory = Self.barGalleryDirectory { renderBarGallery(into: directory) }
   }
 
   /// Reinstalls the event tap whenever the trigger or activation mode changes.
@@ -120,6 +159,37 @@ final class AppModel: ObservableObject {
         self.installHotkeys()
       }
       .store(in: &cancellables)
+
+    // The chosen microphone was stored in preferences and never handed to the capture,
+    // so picking one changed nothing. Applying it here means the next dictation records
+    // from the device the user chose.
+    // The recorder reads this when it decides whether a long dictation may grow to
+    // show what is being said.
+    overlay.liveWordsPreference = preferences.liveWords
+    preferences.$liveWords
+      .removeDuplicates()
+      .receive(on: RunLoop.main)
+      .sink { [weak self] value in self?.overlay.liveWordsPreference = value }
+      .store(in: &cancellables)
+
+    preferences.$microphoneUniqueID
+      .removeDuplicates()
+      .receive(on: RunLoop.main)
+      .sink { [microphone] uniqueID in
+        Task { await microphone.setPreferredDevice(uniqueID) }
+      }
+      .store(in: &cancellables)
+
+    // Retention is a promise about deletion, so it has to be kept the moment the user
+    // changes it — not at the next launch. Shortening the window, or turning audio off
+    // entirely, should remove what is already on disk straight away.
+    preferences.$retainAudio
+      .combineLatest(preferences.$audioRetentionDays)
+      .dropFirst()
+      .removeDuplicates { $0 == $1 }
+      .receive(on: RunLoop.main)
+      .sink { [weak self] _, _ in self?.sweepRetainedAudio() }
+      .store(in: &cancellables)
   }
 
   /// Drives the overlay through its states on a loop, with a plausible meter.
@@ -129,12 +199,119 @@ final class AppModel: ObservableObject {
   /// only works on one machine is a demo that rots. This drives the same views with
   /// the same animations — only the source of the numbers differs.
   static var isDemoingOverlay: Bool {
-    UserDefaults.standard.bool(forKey: "rant-demo-overlay")
+    #if DEBUG
+      UserDefaults.standard.bool(forKey: "rant-demo-overlay")
+    #else
+      false
+    #endif
   }
 
   /// Where to write rendered frames of the recorder, if asked.
+  /// The demo's flat backdrop, which is wanted for a recording and not for a
+  /// screenshot: the bar's material samples what is behind the window, so covering the
+  /// desktop hides the very thing a visual review is looking at.
+  static var wantsDemoBackdrop: Bool {
+    #if DEBUG
+      isDemoingOverlay && UserDefaults.standard.bool(forKey: "rant-demo-backdrop")
+    #else
+      false
+    #endif
+  }
+
   static var gifRenderDirectory: String? {
-    UserDefaults.standard.string(forKey: "rant-render-overlay")
+    #if DEBUG
+      UserDefaults.standard.string(forKey: "rant-render-overlay")
+    #else
+      nil
+    #endif
+  }
+
+  /// Where to write the Rant Bar state gallery, if asked.
+  static var barGalleryDirectory: String? {
+    #if DEBUG
+      UserDefaults.standard.string(forKey: "rant-render-bar-gallery")
+    #else
+      nil
+    #endif
+  }
+
+  /// Draws every state of the Rant Bar to PNG, then exits.
+  ///
+  /// Visual QA needs to *look* at states that are otherwise hard to reach: an error
+  /// requires a failure, hands-free requires a double tap, the expanded state requires
+  /// talking for five seconds, and hover requires a pointer. Driving a real dictation
+  /// to see each one is slow, unreliable and — for the error case — requires breaking
+  /// something on purpose.
+  ///
+  /// `ImageRenderer` draws the same view the app ships, off-screen, so what is
+  /// inspected is what users get, and the output is identical on every run.
+  private func renderBarGallery(into directory: String) {
+    Task { @MainActor in
+      try? FileManager.default.createDirectory(
+        atPath: directory, withIntermediateDirectories: true)
+
+      // A meter shaped like speech rather than noise, so the waveform in the
+      // screenshot is the waveform a person would see.
+      // Three incommensurable rates: a phrase-length swell, a syllable beat and a
+      // little jitter. A single sine reads as a test tone and noise reads as a broken
+      // meter. The timebase is slow enough that the envelope follower does not simply
+      // average it away — a fast synthetic signal produces twelve identical bars,
+      // which says nothing about how the real thing looks.
+      // Written in decibels, because that is the axis the meter maps and the only one
+      // in which "sounds like speech" is a statement about numbers. A syllable beat of
+      // about seven samples rides a slower phrase swell, so the variation lands inside
+      // the window the bars can actually see — the envelope only looks at the last
+      // `barCount * 2` samples, and a pattern slower than that arrives pre-averaged.
+      let speech: [Float] = (0..<40).map { index in
+        let time = Double(index)
+        let phrase = 6.0 * sin(time * 0.13)
+        let syllables = 9.0 * abs(sin(time * 0.45))
+        let decibels = -34.0 + phrase + syllables
+        return Float(pow(10.0, decibels / 20.0))
+      }
+
+      @MainActor func write(
+        _ name: String, state: DictationState, meter: [Float] = [],
+        handsFree: Bool = false, partial: String = "", hover: Bool? = nil,
+        expanded: Bool = false
+      ) {
+        let controller = OverlayController()
+        controller.state = state
+        controller.meter = meter
+        controller.handsFree = handsFree
+        controller.partial = partial
+        if expanded { controller.forceLiveWordsForRendering() }
+        let renderer = ImageRenderer(
+          content: RantBar(controller: controller, forcedHover: hover, staticSurface: true)
+            .frame(width: 340, height: 110)
+            // A mid-grey ground rather than the app's paper: the bar is translucent
+            // and floats over arbitrary content, so a screenshot on a flat white
+            // background would flatter it dishonestly.
+            .background(Color(white: 0.22)))
+        renderer.scale = 2
+        guard let image = renderer.nsImage,
+          let tiff = image.tiffRepresentation,
+          let bitmap = NSBitmapImageRep(data: tiff),
+          let png = bitmap.representation(using: .png, properties: [:])
+        else { return }
+        try? png.write(to: URL(fileURLWithPath: "\(directory)/\(name).png"))
+      }
+
+      write("1-listening", state: .listening, meter: speech)
+      write("2-listening-hover", state: .listening, meter: speech, hover: true)
+      write("3-hands-free", state: .listening, meter: speech, handsFree: true)
+      write(
+        "4-expanded", state: .listening, meter: speech,
+        partial: "so the migration lands Wednesday and I will write it up", expanded: true)
+      write("5-processing", state: .transcribing)
+      write("6-success", state: .success("Inserted"))
+      write("7-error", state: .failure("Could not reach the speech provider", retryable: true))
+      write("8-cancelled", state: .cancelled)
+      write("9-idle", state: .idle)
+
+      print("wrote the Rant Bar gallery to \(directory)")
+      NSApp.terminate(nil)
+    }
   }
 
   /// Renders the recorder to PNG frames and exits.
@@ -156,8 +333,8 @@ final class AppModel: ObservableObject {
         controller.state = state
         controller.meter = meter
         let renderer = ImageRenderer(
-          content: RecorderOverlay(controller: controller)
-            .padding(14)
+          content: RantBar(controller: controller)
+            .frame(width: 320, height: 96)
             .background(Theme.paper))
         renderer.scale = 2
         guard let image = renderer.nsImage,
@@ -234,8 +411,15 @@ final class AppModel: ObservableObject {
   /// True when XCUITest launched us. A UI test must never read or write the
   /// developer's real dictation history, so this switches the database to memory and
   /// starts from first-run state.
+  /// Debug only. A release build must not carry a launch argument that swaps the
+  /// Keychain for an in-memory store — anyone who set it would find Rant unable to see
+  /// the key they had saved, with nothing to explain why.
   static var isUITesting: Bool {
-    UserDefaults.standard.bool(forKey: "rant-ui-testing")
+    #if DEBUG
+      UserDefaults.standard.bool(forKey: "rant-ui-testing")
+    #else
+      false
+    #endif
   }
 
   private func openDatabase() {
@@ -254,6 +438,37 @@ final class AppModel: ObservableObject {
     } catch {
       log.error("could not open the database: \(error.localizedDescription)")
       lastError = "Rant could not open its database. \(error.localizedDescription)"
+    }
+  }
+
+  /// Where retained recordings live. One place, so the sweeper and the writer agree.
+  static func audioDirectory() -> URL {
+    let directory = supportDirectory().appendingPathComponent("Audio", isDirectory: true)
+    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    return directory
+  }
+
+  /// Enforce the audio retention policy.
+  ///
+  /// Called at launch and whenever the setting changes. Without this the policy was
+  /// decoration: `AudioRetention` was implemented and tested, and nothing in the app
+  /// ever called it, so audio the user had asked to be deleted after a day stayed on
+  /// disk indefinitely. Turning retention off now also clears what is already there —
+  /// switching it off should mean the recordings are gone, not merely that no new ones
+  /// arrive.
+  func sweepRetainedAudio() {
+    guard let store else { return }
+    let policy = preferences.audioRetentionPolicy
+    do {
+      let result = try AudioRetention(store: store, directory: Self.audioDirectory())
+        .sweep(policy: policy)
+      if !result.isEmpty {
+        log.info(
+          "audio sweep policy=\(policy.rawValue) deleted=\(result.filesDeleted) cleared=\(result.rowsCleared) missing=\(result.filesMissing) failed=\(result.failed)"
+        )
+      }
+    } catch {
+      log.error("audio sweep failed: \(error.localizedDescription)")
     }
   }
 
@@ -290,24 +505,66 @@ final class AppModel: ObservableObject {
       context: context,
       store: store,
       enhancer: makeEnhancementProvider(),
-      vocabulary: (try? vocabulary?.makeApplier()) ?? VocabularyApplier())
+      vocabulary: (try? vocabulary?.makeApplier()) ?? VocabularyApplier(),
+      streamer: makeStreamingProvider())
 
     let newSession = session
     let relay = StateRelay(model: self)
     Task {
       await newSession?.observeState { state in relay.send(state) }
+      await newSession?.observePartials { text in relay.sendPartial(text) }
     }
     engineReady = true
   }
 
+  /// Every speech provider the app can build, in the order Settings lists them.
+  ///
+  /// One list, used for the picker, for the status rows and for choosing the provider
+  /// a dictation actually runs on. When those were three separate pieces of knowledge
+  /// the picker offered a choice that `makeTranscriptionProvider` ignored — it returned
+  /// AssemblyAI whatever was selected — and Settings showed a control that changed
+  /// nothing.
+  func speechProviderRegistry() -> ProviderRegistry {
+    let secrets = self.secrets
+    return ProviderRegistry(
+      entries: [
+        .cloud(
+          AssemblyAIProvider(secrets: secrets),
+          hasKey: { ((try? secrets.read(.assemblyAI)) ?? nil)?.isEmpty == false }),
+        .init(AppleSpeechProvider(recogniser: SystemOnDeviceRecogniser())) {
+          SystemOnDeviceRecogniser.currentStatus()
+        },
+      ],
+      localOnly: preferences.localOnly)
+  }
+
   private func makeTranscriptionProvider() -> any TranscriptionProvider {
-    // Only one cloud provider exists today. The switch is here rather than inline so
-    // adding the local provider is a one-line change in a place that already reads
-    // like a list of choices.
-    switch preferences.speechProvider {
-    default:
-      return AssemblyAIProvider(secrets: secrets)
+    do {
+      return try speechProviderRegistry().resolve(preferred: preferences.speechProvider)
+    } catch {
+      // Deliberately not a substitute. The registry refuses for a specific reason —
+      // no key, local-only, no on-device model — and carrying that reason to the next
+      // dictation tells the user what to fix. Silently dictating through a different
+      // engine than the one they chose would be worse than failing.
+      return UnavailableProvider(reason: error)
     }
+  }
+
+  /// The live-preview provider, or nil.
+  ///
+  /// Only AssemblyAI streams, and only when the user has asked for the preview and is
+  /// not in local-only mode — a websocket to a speech provider is exactly what
+  /// local-only forbids, and it must not be opened merely because a preview is nice.
+  /// `AssemblyAIStreamProvider` was fully implemented and tested and had no caller.
+  private func makeStreamingProvider() -> (any StreamingTranscriptionProvider)? {
+    guard preferences.livePreview,
+      !preferences.localOnly,
+      preferences.speechProvider == "assemblyai"
+    else { return nil }
+    let secrets = self.secrets
+    return AssemblyAIStreamProvider(
+      keyProvider: { try secrets.read(.assemblyAI) },
+      contextSettings: preferences.contextSettings)
   }
 
   private func makeEnhancementProvider() -> any EnhancementProvider {
@@ -321,8 +578,20 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Interim text from a streaming provider, on its way to the recorder.
+  fileprivate func applyPartial(_ text: String) {
+    partialText = text
+    overlay.updatePartial(text)
+  }
+
   fileprivate func apply(_ state: DictationState) {
     self.state = state
+    // The preview belongs to one recording. Leaving the last dictation's words under
+    // the pill while the next one starts is worse than showing nothing.
+    if !state.isBusy {
+      partialText = ""
+      overlay.updatePartial("")
+    }
     switch state {
     case .listening:
       overlay.show(state: state)
@@ -331,9 +600,13 @@ final class AppModel: ObservableObject {
     case .failure(let message, _):
       lastError = message
       overlay.show(state: state)
-    case .success:
+    case .success(let text):
       refreshHistory()
       overlay.show(state: state)
+      // Only if the user asked for it. The observer is not even built otherwise.
+      if preferences.learnFromCorrections {
+        makeLearningIfNeeded()?.noteInsertion(text)
+      }
     default:
       overlay.show(state: state)
     }
@@ -364,6 +637,80 @@ final class AppModel: ObservableObject {
         ? "Rant could not install its keyboard listener. Try quitting and reopening Rant."
         : "Rant needs Accessibility permission before your dictation key can work anywhere."
     }
+  }
+
+  /// The transform key. Registered once, for the life of the app.
+  ///
+  /// Carbon rather than the event tap, so transforms work without Accessibility being
+  /// granted — reading the selection needs it, and the panel says so when it is
+  /// missing, which is more useful than a key that does nothing at all.
+  private func installTransformHotkey() {
+    guard transformHotkey == nil else { return }
+    let hotkey = CarbonHotkey(.optionShiftT) { [weak self] in
+      Task { @MainActor [weak self] in self?.beginTransform() }
+    }
+    if hotkey.register() {
+      transformHotkey = hotkey
+      log.info("transform key on \(CarbonHotkey.Combination.optionShiftT.displayName)")
+    } else {
+      log.warning("could not register the transform key; another app has it")
+    }
+  }
+
+  /// Built lazily so it shares the enhancer and injector the dictation pipeline uses.
+  func makeTransformControllerIfNeeded() -> TransformController? {
+    if let transformController { return transformController }
+    let controller = TransformController(
+      engine: TransformEngine(
+        enhancer: makeEnhancementProvider(),
+        injector: AccessibilityInjector()),
+      context: AccessibilityContextProvider(),
+      contextSettings: { [weak self] in
+        self?.preferences.contextSettings ?? .default
+      })
+    transformController = controller
+    return controller
+  }
+
+  func beginTransform() {
+    makeTransformControllerIfNeeded()?.begin()
+  }
+
+  /// The command key, separate from dictation as the spec requires.
+  private func installCommandHotkey() {
+    guard commandHotkey == nil else { return }
+    let hotkey = CarbonHotkey(.optionShiftC) { [weak self] in
+      Task { @MainActor [weak self] in self?.toggleCommandMode() }
+    }
+    if hotkey.register() {
+      commandHotkey = hotkey
+      log.info("command key on \(CarbonHotkey.Combination.optionShiftC.displayName)")
+    } else {
+      log.warning("could not register the command key; another app has it")
+    }
+  }
+
+  func makeCommandControllerIfNeeded() -> CommandController? {
+    if let commandController { return commandController }
+    let controller = CommandController(
+      executor: CommandExecutor(
+        engine: TransformEngine(
+          enhancer: makeEnhancementProvider(), injector: AccessibilityInjector()),
+        pasteboard: SystemPasteboard()),
+      microphone: microphone,
+      context: AccessibilityContextProvider(),
+      contextSettings: { [weak self] in self?.preferences.contextSettings ?? .default },
+      makeProvider: { [weak self] in
+        self?.makeTranscriptionProvider()
+          ?? UnavailableProvider(
+            reason: TranscriptionError.modelUnavailable("speech provider"))
+      })
+    commandController = controller
+    return controller
+  }
+
+  func toggleCommandMode() {
+    makeCommandControllerIfNeeded()?.toggle()
   }
 
   /// Claims a plain shortcut so Rant does something useful before any permission is
@@ -401,14 +748,18 @@ final class AppModel: ObservableObject {
     }
     let settings = preferences.dictationSettings
     switch command {
-    case .startRecording:
+    case .startRecording(let kind):
       // Stamped here, at the moment the key press became a decision, so the number
       // the overlay logs is the one the user actually experiences.
       overlay.commandArrivedAt = ContinuousClock.now
+      // The bar shows a padlock when the recording is locked open, so it has to know
+      // which kind this is from the start rather than only after a promotion.
+      overlay.handsFree = (kind == .handsFree)
       Task { await session.start(settings: settings) }
     case .promoteToHandsFree:
-      // The audio already running simply keeps running; only the way it ends changes.
-      break
+      // The audio already running simply keeps running; only the way it ends changes —
+      // and the bar says so.
+      overlay.handsFree = true
     case .stopAndTranscribe:
       Task {
         _ = await session.stopAndTranscribe(settings: settings)
@@ -484,13 +835,91 @@ final class AppModel: ObservableObject {
   /// Screen Recording is what macOS requires for system audio, so without it the
   /// notetaker records only your side of the call. That is a real limitation and the
   /// UI says so rather than failing — a one-sided transcript is still worth having.
-  func startMeeting() {
+  /// Whether a meeting is being recorded right now.
+  var isMeetingRunning: Bool { meetingController?.isRunning ?? false }
+
+  // MARK: - MCP
+
+  /// Bring the local MCP server into line with the settings.
+  ///
+  /// Called at launch and from the Integrations pane. Before this the `mcpEnabled`
+  /// preference was a toggle nothing read — the server was implemented, tested and
+  /// never started.
+  func applyMCPSettings() {
+    guard let database else { return }
+    if mcpController == nil {
+      mcpController = MCPController(
+        database: database, settings: preferences.mcpSettings)
+    }
+    mcpController?.apply(preferences.mcpSettings)
+  }
+
+  // MARK: - Learning from corrections
+
+  /// Built once the database is open. Does nothing until the user opts in.
+  func makeLearningIfNeeded() -> LearningObserver? {
+    if let learning { return learning }
+    guard let database else { return nil }
+    let observer = LearningObserver(
+      engine: LearningEngine(
+        database: database,
+        settings: LearningSettings(enabled: preferences.learnFromCorrections)),
+      context: AccessibilityContextProvider(),
+      contextSettings: { [weak self] in self?.preferences.contextSettings ?? .default })
+    learning = observer
+    return observer
+  }
+
+  // MARK: - Calendar
+
+  var hasCalendarAccess: Bool {
+    get async { await calendar.hasAccess }
+  }
+
+  func requestCalendarAccess() async {
+    _ = await calendar.requestAccess()
+    await refreshUpcomingEvents()
+  }
+
+  /// The next hour of events, used to name a meeting and offer its join link.
+  func refreshUpcomingEvents() async {
+    upcomingEvents = await calendar.upcomingEvents()
+  }
+
+  /// Builds the notetaker's controller once the database is open.
+  ///
+  /// Lazily, because it needs the meeting store, and the store needs the database.
+  func makeMeetingControllerIfNeeded() -> MeetingController? {
+    if let meetingController { return meetingController }
+    guard let meetings else { return nil }
+    let controller = MeetingController(
+      store: meetings,
+      microphone: microphone,
+      makeProvider: { [weak self] in
+        self?.makeTranscriptionProvider() ?? UnavailableProvider(
+          reason: TranscriptionError.modelUnavailable("speech provider"))
+      },
+      makeEnhancer: { [weak self] in self?.makeEnhancementProvider() ?? NoEnhancement() },
+      // A meeting transcript is the most sensitive text Rant holds. Summarising it
+      // with a remote model is allowed only when the user has not asked for local
+      // only — the same switch that governs dictation.
+      allowOffDeviceSummary: { [weak self] in !(self?.preferences.localOnly ?? true) })
+    meetingController = controller
+    return controller
+  }
+
+  func startMeeting(title: String? = nil) {
+    // Asked for, not required: without it Rant records the user's side only, which is
+    // a usable meeting rather than a failed one.
     if !permissions.screenRecording.isGranted {
       permissions.requestScreenRecording()
     }
-    lastError = permissions.screenRecording.isGranted
-      ? nil
-      : "Rant will record only your side of this call until Screen Recording is granted."
+    guard let controller = makeMeetingControllerIfNeeded() else {
+      lastError = "Rant could not open its database, so it cannot record a meeting."
+      return
+    }
+    lastError = nil
+    controller.start(title: title)
   }
 
   // MARK: - Import and export
@@ -556,9 +985,66 @@ final class AppModel: ObservableObject {
     return (try? store.search(query, limit: 100)) ?? []
   }
 
+  /// Dictations that are *about* the query without containing its words.
+  ///
+  /// Deliberately a second list rather than blended into the exact results: full-text
+  /// search either matched or it did not, and mixing a similarity score into that
+  /// makes both harder to trust. `SemanticIndex` was implemented and tested and had no
+  /// caller.
+  ///
+  /// Local by construction — `NLEmbedding` ships with macOS and does no networking —
+  /// so recall can never become a quiet reason for transcripts to leave the machine.
+  func semanticSearch(_ query: String) async -> [SemanticHit] {
+    guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+    guard let index = makeSemanticIndexIfNeeded() else { return [] }
+    return (try? await index.search(query, kinds: [.transcript], limit: 8)) ?? []
+  }
+
+  private func makeSemanticIndexIfNeeded() -> SemanticIndex? {
+    if let semantic { return semantic }
+    guard let database else { return nil }
+    let embedding = AppleTextEmbedding()
+    // No embedding model for this language means no index. Saying so beats building an
+    // index that silently covers a fraction of the history.
+    guard embedding.isAvailable else { return nil }
+    let index = SemanticIndex(database: database, embedder: embedding)
+    semantic = index
+    // Indexing is incremental and bounded, so the first search pays for a batch rather
+    // than for the whole history.
+    Task { _ = try? await index.indexPending() }
+    return index
+  }
+
   func delete(_ transcript: Transcript) {
     guard let store, let id = transcript.id else { return }
     try? store.delete(id: id)
+    refreshHistory()
+  }
+
+  /// Pin a dictation so it survives a "delete everything you do not need" sweep of the
+  /// list — and so it can be found again without remembering a word from it.
+  func toggleFavourite(_ transcript: Transcript) {
+    guard let store, let id = transcript.id else { return }
+    try? store.setFavourite(id: id, !transcript.favourite)
+    refreshHistory()
+  }
+
+  func setTags(_ tags: [String], on transcript: Transcript) {
+    guard let store, let id = transcript.id else { return }
+    try? store.setTags(id: id, tags)
+    refreshHistory()
+  }
+
+  /// Correct the text of a dictation Rant got wrong.
+  ///
+  /// Only the final text. The raw transcript is what was actually heard and stays as
+  /// it was — losing it would make the history a record of what you meant rather than
+  /// of what happened, and the two are worth telling apart.
+  func updateText(_ text: String, on transcript: Transcript) {
+    guard let store, let id = transcript.id else { return }
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    try? store.update(id: id, finalText: trimmed)
     refreshHistory()
   }
 
@@ -581,12 +1067,30 @@ final class AppModel: ObservableObject {
     meterTimer?.invalidate()
     meterTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
       Task { @MainActor [weak self] in
-        guard let self, self.state.isBusy else { return }
+        guard let self, self.state.isBusy || self.isMonitoringLevel else { return }
         let history = await self.microphone.meterHistory
         self.meterHistory = history
-        self.overlay.updateMeter(history)
+        if self.state.isBusy { self.overlay.updateMeter(history) }
       }
     }
+  }
+
+  /// The current input level, for a meter that is not part of a dictation.
+  var meterLevel: Float { meterHistory.last ?? 0 }
+
+  /// Keep the level updating while a screen is showing a meter.
+  ///
+  /// Settings needs to prove the chosen microphone is the one being heard, and that
+  /// has to work before any dictation has happened — otherwise "is this thing on?" can
+  /// only be answered by recording something.
+  func beginLevelMonitoring() {
+    isMonitoringLevel = true
+    Task { [microphone] in try? await microphone.prepare() }
+  }
+
+  func endLevelMonitoring() {
+    isMonitoringLevel = false
+    meterHistory = []
   }
 
   // MARK: - Diagnostics
@@ -626,9 +1130,14 @@ final class AppModel: ObservableObject {
     buildSession()
   }
 
+  /// Tests the provider that is actually selected, not the cloud one.
+  ///
+  /// For the on-device engine "connection" means permission plus on-device asset
+  /// availability, which is exactly what its `checkReachability` answers — so the same
+  /// button gives a real answer for both engines instead of only for AssemblyAI.
   func testConnection() async -> Result<Void, Error> {
     do {
-      try await AssemblyAIProvider(secrets: secrets).checkReachability()
+      try await makeTranscriptionProvider().checkReachability()
       return .success(())
     } catch {
       return .failure(error)
@@ -648,5 +1157,9 @@ private final class StateRelay: @unchecked Sendable {
 
   func send(_ state: DictationState) {
     Task { @MainActor in self.model?.apply(state) }
+  }
+
+  func sendPartial(_ text: String) {
+    Task { @MainActor in self.model?.applyPartial(text) }
   }
 }

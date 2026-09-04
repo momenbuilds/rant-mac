@@ -20,6 +20,12 @@ struct MenuBarContent: View {
       Button("Retry Last Dictation") { model.retryLast() }
     }
 
+    Button("Start Notetaker") {
+      model.startMeeting()
+      open(.notetaker)
+    }
+    .disabled(model.isMeetingRunning)
+
     Divider()
 
     Menu("Cleanup: \(preferences.cleanupLevel.displayName)") {
@@ -56,13 +62,24 @@ struct MenuBarContent: View {
       }
     }
 
-    Button("Open Rant") {
-      NSApp.activate(ignoringOtherApps: true)
-      openWindow(id: "main")
-    }
+    Button("Open Rant") { open(.home) }
+    Button("History") { open(.history) }
+    Button("Settings…") { open(.settings) }
+      .keyboardShortcut(",", modifiers: .command)
 
     Divider()
     Button("Quit Rant") { NSApp.terminate(nil) }
       .keyboardShortcut("q")
+  }
+
+  /// Raise the window *and* put it on the right page.
+  ///
+  /// Every one of these used to be a single "Open Rant" that dropped you wherever you
+  /// were last, so a menu item named History was indistinguishable from one named
+  /// Settings.
+  private func open(_ destination: MainWindow.Destination) {
+    model.destination = destination.rawValue
+    NSApp.activate(ignoringOtherApps: true)
+    openWindow(id: "main")
   }
 }

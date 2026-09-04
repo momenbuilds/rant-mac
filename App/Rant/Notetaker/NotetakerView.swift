@@ -37,16 +37,29 @@ struct NotetakerView: View {
             .accessibilityLabel("Meeting actions")
             .disabled(current == nil)
 
-            Button {
-              model.startMeeting()
-            } label: {
-              Label("Start recording", systemImage: "record.circle")
+            if let controller = model.meetingController {
+              MeetingControls(controller: controller, onStop: reload)
+            } else {
+              Button {
+                model.startMeeting()
+              } label: {
+                Label("Start recording", systemImage: "record.circle")
+              }
+              .buttonStyle(.clay)
+              .help("Records your microphone and, with Screen Recording granted, the other people on the call")
             }
-            .buttonStyle(.clay)
-            .help("Records your microphone and, with Screen Recording granted, the other people on the call")
           }))
         .padding(.horizontal, Theme.Spacing.page)
         .padding(.top, Theme.Spacing.page)
+
+      if let controller = model.meetingController {
+        LiveMeetingBanner(controller: controller) { id in
+          reload()
+          selection = id
+        }
+        .padding(.horizontal, Theme.Spacing.page)
+        .padding(.top, Theme.Spacing.small)
+      }
 
       HSplitView {
         list.frame(minWidth: 250, idealWidth: 300)
@@ -60,6 +73,7 @@ struct NotetakerView: View {
   }
 
   private var current: Meeting? { meetings.first { $0.id == selection } }
+
 
   @ViewBuilder private var list: some View {
     if meetings.isEmpty {
@@ -198,5 +212,111 @@ struct NotetakerView: View {
     try? store.delete(id: id)
     selection = nil
     reload()
+  }
+}
+
+/// Start / pause / stop.
+///
+/// A separate view holding the controller as an `@ObservedObject`. `AppModel` publishes
+/// the controller, not the controller's own state, so a view that reached through the
+/// model would show a Start button for the whole meeting.
+private struct MeetingControls: View {
+  @ObservedObject var controller: MeetingController
+  @EnvironmentObject private var model: AppModel
+  let onStop: () -> Void
+
+  var body: some View {
+    if controller.isRunning {
+      Button {
+        controller.session.state == .paused ? controller.resume() : controller.pause()
+      } label: {
+        Label(
+          controller.session.state == .paused ? "Resume" : "Pause",
+          systemImage: controller.session.state == .paused ? "play.fill" : "pause.fill")
+      }
+      .buttonStyle(.quiet)
+
+      Button {
+        controller.stop()
+      } label: {
+        Label("Stop", systemImage: "stop.fill")
+      }
+      .buttonStyle(.clay)
+    } else {
+      Button {
+        model.startMeeting()
+      } label: {
+        Label("Start recording", systemImage: "record.circle")
+      }
+      .buttonStyle(.clay)
+      .help("Records your microphone and, with Screen Recording granted, the other people on the call")
+    }
+  }
+}
+
+/// The transcript as it arrives, plus an honest statement of which halves of the call
+/// are being heard. "Recording" without saying whether the other people are included is
+/// the kind of ambiguity that loses somebody a meeting.
+private struct LiveMeetingBanner: View {
+  @ObservedObject var controller: MeetingController
+  /// Called once the finished meeting has been written, so the list can pick it up.
+  /// Saving is asynchronous — it waits on the summariser — so the moment the user
+  /// presses Stop is too early to reload.
+  var onSaved: (Int64) -> Void = { _ in }
+
+  var body: some View {
+    Group {
+      if controller.isRunning {
+        banner
+      }
+    }
+    .onChange(of: controller.savedMeetingID) { _, id in
+      if let id { onSaved(id) }
+    }
+  }
+
+  private var banner: some View {
+    Card(fill: controller.session.state == .paused ? Theme.sunken : Theme.claySoft) {
+      VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
+        HStack(spacing: Theme.Spacing.tight) {
+          Circle()
+            .fill(controller.session.state == .paused ? Theme.inkFaint : Theme.live)
+            .frame(width: 8, height: 8)
+          Text(controller.session.state == .paused ? "Paused" : "Recording")
+            .font(.system(size: 12.5, weight: .semibold))
+            .foregroundStyle(Theme.ink)
+          Chip(
+            text: controller.capturesSystemAudio
+              ? "You and the call" : "Your microphone only")
+          Spacer()
+          Text("\(controller.session.wordCount) words")
+            .font(.system(size: 11.5)).foregroundStyle(Theme.inkMuted)
+        }
+
+        if !controller.capturesSystemAudio {
+          Text("Screen Recording is not granted, so Rant is capturing only your side. Grant it in System Settings → Privacy & Security → Screen Recording and start again to include everyone.")
+            .font(.caption).foregroundStyle(Theme.inkMuted)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+
+        if controller.liveTranscript.isEmpty {
+          Text("Listening… the first few seconds appear once there is enough to transcribe.")
+            .font(.system(size: 12)).foregroundStyle(Theme.inkMuted)
+        } else {
+          ScrollView {
+            Text(controller.liveTranscript)
+              .font(.system(size: 12.5))
+              .foregroundStyle(Theme.ink)
+              .textSelection(.enabled)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+          .frame(maxHeight: 120)
+        }
+
+        if let error = controller.lastError {
+          Text(error).font(.caption).foregroundStyle(Theme.live)
+        }
+      }
+    }
   }
 }

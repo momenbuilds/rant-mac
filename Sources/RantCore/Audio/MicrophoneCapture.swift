@@ -1,5 +1,6 @@
 #if canImport(AVFoundation)
 @preconcurrency import AVFoundation
+import CoreAudio
 import Foundation
 
 /// The real microphone, via `AVAudioEngine`, delivering 16 kHz mono 16-bit PCM —
@@ -42,8 +43,43 @@ public actor MicrophoneCapture: AudioCaptureProvider {
     self.preRollBytes = Self.sampleRate / 1000 * preRollMilliseconds * 2
   }
 
+  /// Choose which microphone to record from.
+  ///
+  /// Restarts the engine when the choice actually changes: the input device is a
+  /// property of the running input unit, so setting it on a live engine is what makes
+  /// the next dictation use the new microphone instead of the next launch. This used
+  /// to store the value and never read it, which made the setting decoration.
   public func setPreferredDevice(_ uniqueID: String?) {
+    guard uniqueID != preferredDeviceID else { return }
     preferredDeviceID = uniqueID
+    guard engineRunning else { return }
+    shutDown()
+    try? prepare()
+  }
+
+  /// Point the engine's input unit at the chosen device before the format is read.
+  ///
+  /// Order matters: `inputFormat(forBus:)` reports the format of whatever device is
+  /// currently selected, so the converter must be built *after* this, or Rant converts
+  /// from the old microphone's format and gets noise.
+  private func applyPreferredDevice() {
+    guard let audioUnit = engine.inputNode.audioUnit else { return }
+    guard
+      var device = preferredDeviceID.flatMap(AudioDevices.deviceID(forUniqueID:))
+        ?? AudioDevices.defaultInputDeviceID()
+    else { return }
+    let status = AudioUnitSetProperty(
+      audioUnit,
+      kAudioOutputUnitProperty_CurrentDevice,
+      kAudioUnitScope_Global,
+      0,
+      &device,
+      UInt32(MemoryLayout<AudioDeviceID>.size))
+    if status != noErr {
+      // Not fatal: the system default still records. Say so rather than pretending
+      // the chosen microphone is in use.
+      log.warning("could not select the chosen microphone (status \(status)); using the default")
+    }
   }
 
   // MARK: - Lifecycle
@@ -53,6 +89,7 @@ public actor MicrophoneCapture: AudioCaptureProvider {
   public func prepare() throws {
     guard !engineRunning else { return }
     let input = engine.inputNode
+    applyPreferredDevice()
     let inputFormat = input.inputFormat(forBus: 0)
     guard inputFormat.sampleRate > 0 else { throw AudioCaptureError.noInputDevice }
 
@@ -104,6 +141,18 @@ public actor MicrophoneCapture: AudioCaptureProvider {
   public func cancel() async {
     recording = false
     captured = Data()
+  }
+
+  /// Take everything captured so far and keep recording.
+  ///
+  /// A dictation reads its audio once, at the end. A meeting cannot wait an hour to
+  /// show a word, so the notetaker drains the buffer every few seconds and transcribes
+  /// as it goes. Returning and clearing in one step is what keeps that safe: two
+  /// callers cannot both receive the same samples, so nothing is transcribed twice.
+  public func drain() -> AudioBuffer {
+    let data = captured
+    captured = Data()
+    return AudioBuffer(pcm: data, sampleRate: Self.sampleRate)
   }
 
   /// Fully stops the engine. Called when the app goes idle for a long time, or when

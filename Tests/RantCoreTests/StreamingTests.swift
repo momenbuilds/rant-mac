@@ -113,17 +113,25 @@ final class StreamingTests: XCTestCase {
 
   private static let key = "test-key-0123456789abcdef"
 
+  /// The grace is 30 ms by default so tests that *want* it to expire stay fast.
+  ///
+  /// A test that wants it **not** to expire has to say so. One did not, and that made
+  /// the outcome a property of how loaded the machine was: the gap between the
+  /// Terminate going out and the test pushing the final turn is comfortably under
+  /// 30 ms on a developer machine and not on a busy CI runner, where the grace ran out
+  /// first and the last turn was never delivered.
   private func provider(
     connector: any WebSocketConnecting,
     key: String? = StreamingTests.key,
-    reconnect: ReconnectPolicy = ReconnectPolicy(maximumAttempts: 0)
+    reconnect: ReconnectPolicy = ReconnectPolicy(maximumAttempts: 0),
+    grace: Duration = .milliseconds(30)
   ) -> AssemblyAIStreamProvider {
     AssemblyAIStreamProvider(
       keyProvider: { key },
       endpoint: URL(string: "wss://streaming.example.invalid/v3/ws")!,
       connector: connector,
       reconnectPolicy: reconnect,
-      terminationGrace: .milliseconds(30))
+      terminationGrace: grace)
   }
 
   private func turn(_ text: String, endOfTurn: Bool) -> String {
@@ -185,7 +193,7 @@ final class StreamingTests: XCTestCase {
     XCTAssertEqual(components.path, "/v3/ws")
     XCTAssertEqual(items["sample_rate"], "16000")
     XCTAssertEqual(items["encoding"], "pcm_s16le")
-    XCTAssertEqual(items["speech_model"], "universal-streaming")
+    XCTAssertEqual(items["speech_model"], "universal-streaming-english")
     XCTAssertEqual(items["format_turns"], "true")
   }
 
@@ -348,8 +356,12 @@ final class StreamingTests: XCTestCase {
 
   func testTheServerIsGivenAChanceToFlushItsLastTurnBeforeTheSocketIsClosed() async throws {
     let channel = FakeWebSocketChannel()
-    let stream = try await provider(connector: FakeWebSocketConnector(channels: [channel]))
-      .stream(context: nil, options: .default)
+    // A grace long enough that machine speed cannot decide the result. What is being
+    // tested is that the last turn arrives before the socket closes, not how quickly
+    // this runner gets round to pushing it.
+    let stream = try await provider(
+      connector: FakeWebSocketConnector(channels: [channel]), grace: .seconds(5)
+    ).stream(context: nil, options: .default)
     let log = PartialLog()
     _ = consume(stream, into: log)
 

@@ -126,7 +126,7 @@ public struct Mode: Equatable, Sendable, Identifiable, Codable {
 ///
 /// Same precedence rule as styles — site, then app, then the user's chosen default —
 /// so the two behave alike and there is one idea to learn rather than two.
-public struct ModeResolver: Sendable {
+public struct ModeResolver: Equatable, Sendable, Codable {
   public var modes: [Mode]
   public var defaultModeName: String
   public var sessionOverride: String?

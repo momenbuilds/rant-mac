@@ -20,27 +20,53 @@ Test with `bash scripts/smoke-test.sh`, which walks you through each app and rec
 the result. Please update this table when you find something new, including **how** it
 misbehaves — "does not work" is not a bug report.
 
-| Application | Works | Direct | Clipboard preserved | Notes |
-|---|---|---|---|---|
-| TextEdit | ⬜ | ⬜ | ⬜ | reference case for plain `NSTextView` |
-| Notes | ⬜ | ⬜ | ⬜ | |
-| Mail | ⬜ | ⬜ | ⬜ | |
-| Messages | ⬜ | ⬜ | ⬜ | |
-| Safari — plain input | ⬜ | ⬜ | ⬜ | |
-| Safari — contenteditable | ⬜ | ⬜ | ⬜ | rich editors often refuse `AXSelectedText` |
-| Chrome — plain input | ⬜ | ⬜ | ⬜ | |
-| Chrome — Gmail compose | ⬜ | ⬜ | ⬜ | |
-| Terminal | ⬜ | ⬜ | ⬜ | expect clipboard path; check no stray newline |
-| iTerm2 | ⬜ | ⬜ | ⬜ | |
-| Xcode editor | ⬜ | ⬜ | ⬜ | check identifier casing survives |
-| VS Code | ⬜ | ⬜ | ⬜ | Electron; usually clipboard path |
-| Cursor | ⬜ | ⬜ | ⬜ | check the AI chat input specifically |
-| Slack | ⬜ | ⬜ | ⬜ | check it does not send on paste |
-| Discord | ⬜ | ⬜ | ⬜ | |
-| Notion | ⬜ | ⬜ | ⬜ | block editor; watch for lost leading space |
-| Obsidian | ⬜ | ⬜ | ⬜ | |
-| Figma | ⬜ | ⬜ | ⬜ | canvas app; text tool only |
-| 1Password | 🚫 | 🚫 | — | **refused by design** — see below |
+**Every row is still ⬜.** The *Installed here* column was filled in from the machine
+Rant is being built on, and the untested marks were left exactly as they were, because
+per-app insertion cannot be verified without a person pressing the key and speaking.
+
+That is not a gap that automation could close by trying harder. Verifying insertion
+means putting text into somebody's real applications, and the consequences are not
+symmetrical: a stray paste into Slack sends a message, into Terminal runs a command,
+into Safari's address bar navigates. A harness willing to do that to a real machine is
+worse than an honest empty column, so the audit did not do it.
+
+What *is* verified automatically is the mechanism the rows depend on: the
+Accessibility-first path, the clipboard fallback, clipboard save and restore, spacing
+around the insertion point, and the refusal to touch a secure field. Those are in
+`InjectionTests`, and they run on every check. What a ⬜ means here is "nobody has
+confirmed this particular application's text field behaves", not "this is unlikely to
+work".
+
+| Application | Installed here | Works | Direct | Clipboard preserved | Notes |
+|---|---|---|---|---|---|
+| TextEdit | ✅ | ⬜ | ⬜ | ⬜ | reference case for plain `NSTextView` |
+| Notes | ✅ | ⬜ | ⬜ | ⬜ | |
+| Mail | ✅ | ⬜ | ⬜ | ⬜ | |
+| Messages | ✅ | ⬜ | ⬜ | ⬜ | |
+| Safari — plain input | ✅ | ⬜ | ⬜ | ⬜ | |
+| Safari — contenteditable | ✅ | ⬜ | ⬜ | ⬜ | rich editors often refuse `AXSelectedText` |
+| Brave — plain input | ✅ | ⬜ | ⬜ | ⬜ | Chromium; the Chrome row applies |
+| Brave — Gmail compose | ✅ | ⬜ | ⬜ | ⬜ | |
+| Terminal | ✅ | ⬜ | ⬜ | ⬜ | expect clipboard path; check no stray newline |
+| Ghostty | ✅ | ⬜ | ⬜ | ⬜ | |
+| Xcode editor | ✅ | ⬜ | ⬜ | ⬜ | check identifier casing survives |
+| Zed | ✅ | ⬜ | ⬜ | ⬜ | |
+| Slack | ✅ | ⬜ | ⬜ | ⬜ | check it does not send on paste |
+| Discord | ✅ | ⬜ | ⬜ | ⬜ | |
+| Telegram | ✅ | ⬜ | ⬜ | ⬜ | |
+| WhatsApp | ✅ | ⬜ | ⬜ | ⬜ | |
+| ChatGPT (desktop) | ✅ | ⬜ | ⬜ | ⬜ | the prompt box specifically |
+| Claude (desktop) | ✅ | ⬜ | ⬜ | ⬜ | the prompt box specifically |
+| Todoist | ✅ | ⬜ | ⬜ | ⬜ | |
+| Zoom | ✅ | ⬜ | ⬜ | ⬜ | chat panel |
+| Chrome | NOT_INSTALLED | — | — | — | Brave covers the Chromium path here |
+| VS Code | NOT_INSTALLED | — | — | — | Electron; expect the clipboard path |
+| Cursor | NOT_INSTALLED | — | — | — | |
+| iTerm2 | NOT_INSTALLED | — | — | — | |
+| Notion | NOT_INSTALLED | — | — | — | |
+| Obsidian | NOT_INSTALLED | — | — | — | |
+| Figma | NOT_INSTALLED | — | — | — | |
+| 1Password | NOT_INSTALLED | 🚫 | 🚫 | — | **refused by design** — see below |
 
 Legend: ✅ works · ⚠️ works with caveats · ❌ broken · 🚫 deliberately refused · ⬜ untested
 

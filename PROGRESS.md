@@ -1,86 +1,95 @@
 # Progress
 
-_Last updated: 2026-09-04_
+_Last updated: 2026-09-04 — Final Completeness Audit_
+
+## Current work
+
+The Final Completeness Audit is finished. Rant was re-audited against
+`docs/MASTER_PROMPT.md` rather than against `TASKS.md`, and what the audit found has
+been fixed. The requirement matrix, with evidence per item, is `docs/FINAL_AUDIT.md`.
+
+Work is on `worktree-final-audit`, open as PR #1.
 
 ## At a glance
 
 | | |
 |---|---|
-| **Tasks** | **54 of 54 complete** |
-| **Engine build** | ✅ clean — zero warnings, warnings treated as failures |
-| **Unit tests** | ✅ **765 passing**, 0 failing, 1 skipped |
-| **UI tests** | ✅ 9 passing — **opt-in**, they take over the cursor (`bash scripts/ui-test.sh`) |
-| **`scripts/check.sh`** | ✅ **8 passed, 0 failed, 2 skipped** (both skips are honest, see below) |
-| **Published** | https://github.com/momenbuilds/rant-mac |
-| **Real dictation** | ✅ confirmed end to end |
+| **`scripts/check.sh`** (CI, run 33914567305) | ✅ **8 passed, 0 failed, 1 skipped** |
+| **Unit tests** | ✅ **825 passing**, 0 failing, 2 skipped (both opt-in) |
+| **UI tests (XCUITest)** | ✅ **9 passing**, 0 failing |
+| **Engine build** | ✅ clean — warnings treated as failures |
+| **App build** | ✅ Debug and Release; Release universal (x86_64 arm64), zero test hooks in the binary |
+| **Installed dev app** | `/Applications/Rant Dev.app`, signed with a real Apple Development certificate so TCC grants survive rebuilds |
+| **Local speech** | ✅ verified with real audio on this machine |
 
-## Measured, not claimed
+## The finding that matters most
 
-From `PerformanceTests`, on the Intel machine this was built on — the slower case:
+**`check.sh` reported PASS while unit tests were failing.** Its failure grep stopped
+matching the moment any test was skipped, so from the first skipped test onwards a run
+with both a skip and a failure went green. It was concealing two genuinely red tests on
+CI. Repaired, and verified against the exact string that fooled it — see
+`docs/FINAL_AUDIT.md`. Everything else in this file depends on that check being honest,
+which is why it is first.
 
-| | |
+## What else the audit found
+
+`RantCore` implements very nearly the whole specification and is well covered. The
+**app shell reached only part of it**: eighteen implemented, tested engine entry points
+were referenced nowhere in `App/Rant`, and several screens described behaviour with no
+path from the interface to the code performing it.
+
+| Was | Now |
 |---|---|
-| arming the microphone (Rant's own overhead) | **0.01 ms** |
-| everything after the transcript arrives | **4.1 ms** |
-| a 50-word dictation, post-provider | **5.9 ms** |
-| a 2,000-word dictation, post-provider | **31.7 ms** |
+| No local engine at all — `WhisperBackend`'s only conformer was a test fake, so "Local only" could not dictate | `AppleSpeechProvider`, on device, no key, no download. Real speech verified on this machine |
+| Engine picker had one option and the selection was ignored | Picker and session both resolve through `ProviderRegistry` |
+| Notetaker recorded nothing — `startMeeting()` asked for a permission and returned | `MeetingController` records, transcribes, summarises, saves; live transcript |
+| Transforms was a list of prompts with an unregistered hotkey and no diff | ⌥⇧T, selection, diff, accept / reject / copy / edit |
+| Styles never reached a dictation | Resolved in the session after context; `StyleRoutingTests` |
+| Modes were in no sidebar group; the resolver was unused | In the sidebar, editable, changes the pipeline; `ModeRoutingTests` |
+| Audio retention displayed and never enforced | Swept at launch and on change |
+| Microphone preference assigned and never read | CoreAudio enumeration, real selection, live meter |
+| MCP was a boolean nothing read | Starts and stops, loopback only, consent per collection |
+| Command mode had no key | ⌥⇧C, preview before anything is written |
+| Live partials did not exist | Preview under the pill; refused under Local only |
+| Actions were constructed only in tests | Listed with permissions in Integrations; confirmation is a real stop |
+| Calendar had a fixture conformer only | `EventKitCalendar`, read-only |
+| Correction learning and the voice profile computed and never shown | Both wired; learning opt-in |
+| Release shipped four test hooks, one erasing every preference | `#if DEBUG`; verified absent from the Release binary |
 
-Forty times the words costs five times the work, not forty. The provider round trip is
-the only part Rant does not control, and the budgets bracket it on both sides so a slow
-dictation can be attributed correctly.
+## Known failures
 
-## What is built
+None. `check.sh` is green for every runnable check, and the check is now trustworthy.
 
-Dictation (push-to-talk, toggle, hands-free, lone-modifier triggers that leave ⌘C
-alone), four cleanup levels with the first three deterministic and offline,
-Accessibility-first insertion with a clipboard fallback, three speech providers
-(AssemblyAI sync, AssemblyAI streaming, local whisper.cpp), a context engine with a
-single audited outbound boundary, dictionary and snippets, styles and modes, local
-history with FTS search, Insights, Rant Archive export/import, a Migration Center with
-eleven adapters, the meeting Notetaker, selected-text transforms with a real
-word-level diff, a constrained command mode, an Actions layer with permission classes
-and confirmation tokens, opt-in adaptive learning, local semantic search, and a
-loopback-only MCP server with a working socket and stdio transport.
+Four tests were fixed rather than retried or relaxed. Three had made their outcome a
+property of how loaded the machine was — an unawaited `Task` recording download
+progress, a 30 ms termination grace, and a fixed sleep waiting on a background pump.
+The fourth, the history-search benchmark, was comparing the indexed path *decoding
+rows* against the scanned path *counting* them and calling the difference a ratio;
+both sides now select the same columns, so the assertion keeps its teeth.
 
-## Bugs the tests caught
+## Honest skips
 
-Every one would have shipped. The full list is in the git history; the ones worth
-knowing about:
+- **Global text injection** — cannot be honestly automated. Manual matrix in
+  `docs/SMOKE_TEST.md`. The mechanism it depends on is covered by `InjectionTests`.
+- **XCUITest locally** — opt-in, and the runner cannot bootstrap on this machine
+  (`Test crashed with signal kill before establishing connection`). It runs in CI,
+  where all nine pass.
+- **`scripts/local-speech-smoke.sh`** — opt-in: it needs the Speech Recognition grant,
+  and a permission prompt would hang a CI runner.
 
-1. A lazy regex in the self-correction pass **hung the app** on long dictations.
-2. Spoken-punctuation expansion took **4.1 seconds** per dictation — sixty string
-   allocations per word, on the critical path.
-3. A streaming session cancelled during the websocket handshake **never terminated**,
-   billing until AssemblyAI timed it out.
-4. Audio retention used `hasPrefix` for path containment, so a sibling directory
-   sharing a prefix **had its files deleted**.
-5. Reading the Keychain from the sidebar footer meant a read on every redraw — and on
-   the file keychain each read can raise a password dialog that is modal to the app,
-   so it appeared *before* the window and blocked it entirely.
-6. Styles and Modes were `Identifiable` on a database row id that is nil for every
-   built-in, so SwiftUI drew the first style ten times.
-7. Streak calculation broke on DST days; `words_per_minute` truncated 4.5 to 4.0 on
-   every read; half the Actions vocabulary was unreachable; adaptive learning never
-   learned the useful case.
+## External blockers
 
-## The two honest skips
+- **A real AssemblyAI transcription** — no key on this machine. Everything around it is
+  built and tested against mocks. Settings → Speech → paste the key → Test connection.
+  No longer blocks dictation: the on-device engine needs no key.
+- **Per-application insertion matrix** — needs a person. Verifying it means pasting
+  into real applications, where a stray paste into Slack sends a message and into
+  Terminal runs a command.
+- **Notarisation** — needs a Developer ID certificate. See `docs/PACKAGING.md`.
 
-- **Global text injection** is not automated and will not be. It needs real
-  permissions and real applications; a flaky test guarding something that important is
-  worse than the manual matrix in `docs/SMOKE_TEST.md`.
-- **The XCUITest suite is opt-in.** It drives the real cursor and makes the machine
-  unusable for two minutes, so it does not run on every check. CI runs it with
-  `RUN_UI_TESTS=1`.
+## Next
 
-## Honest gaps
-
-- **No Developer ID certificate**, so builds are ad-hoc signed and Gatekeeper refuses
-  them on another Mac. That is why `install.sh` builds from source instead of shipping
-  a binary. `docs/PACKAGING.md` says exactly what changes when a certificate exists.
-- **No auto-updater.** One that cannot verify signatures is a remote code execution
-  feature.
-- **The whisper.cpp backend is a protocol without its C binding.** Everything around
-  it is built and tested, and the provider throws `modelUnavailable` rather than
-  silently reaching for the network.
-- **The VoiceOver walkthrough has not been done by a person.** The static pass fixed
-  what a static pass can find.
+1. Merge PR #1.
+2. Walk `docs/SMOKE_TEST.md` to fill in the compatibility matrix.
+3. RANT-085 — whisper.cpp behind `WhisperBackend`, only if a specific model is
+   wanted. The on-device engine already satisfies the local requirement.

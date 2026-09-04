@@ -45,10 +45,29 @@ run "engine build (warnings are failures)" check_build
 
 # --- 2. Unit tests ----------------------------------------------------------------
 check_tests() {
-  local output
-  output=$(swift test 2>&1)
+  local output status=0
+  output=$(swift test 2>&1) || status=$?
   echo "$output" | grep -E "Executed [0-9]+ tests" | tail -1
-  ! echo "$output" | grep -qE ", with [1-9][0-9]* failures?"
+
+  # The exit status is the primary signal, and it used not to be consulted at all.
+  #
+  # The old check was a single grep for ", with N failures" — which does not match
+  # "Executed 814 tests, with 2 tests skipped and 2 failures", because the count no
+  # longer follows "with " once anything is skipped. So the moment the suite had both
+  # a skip and a failure, this reported PASS. A green light that goes green when tests
+  # fail is worse than no green light, and this one had been wrong since the first
+  # skipped test was added.
+  if [ "$status" -ne 0 ]; then
+    echo "$output" | grep -E "error:|XCTAssert|Test Case .* failed|✘" | head -20
+    return "$status"
+  fi
+  # Belt and braces: a summary that reports failures fails the check even if the exit
+  # status somehow did not. "0 failures" does not match; "1 failure" and "2 failures"
+  # do, wherever they appear in the line.
+  if echo "$output" | grep -qE "[1-9][0-9]* (unexpected )?failures?"; then
+    echo "$output" | grep -E "XCTAssert|Test Case .* failed|✘" | head -20
+    return 1
+  fi
 }
 run "unit tests" check_tests
 

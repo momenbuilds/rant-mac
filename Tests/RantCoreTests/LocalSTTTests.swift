@@ -364,14 +364,14 @@ final class LocalSTTTests: XCTestCase {
 
     let progressBox = ProgressBox()
     let url = try await store.download(store.plan(for: model)) { value in
-      Task { await progressBox.record(value) }
+      progressBox.record(value)
     }
 
     XCTAssertEqual(url.lastPathComponent, model.fileName)
     let installed = await store.isInstalled(model)
     XCTAssertTrue(installed)
     XCTAssertEqual(downloader.requestedURLs, [model.downloadURL])
-    let seen = await progressBox.values
+    let seen = progressBox.values
     XCTAssertTrue(seen.contains(1), "the UI needs to be told the download finished")
     let leftovers = try FileManager.default.contentsOfDirectory(atPath: directory.path)
     XCTAssertEqual(leftovers, [model.fileName], "no .partial file should survive a good download")
@@ -545,7 +545,20 @@ final class InstalledFlag: @unchecked Sendable {
   }
 }
 
-actor ProgressBox {
-  private(set) var values: [Double] = []
-  func record(_ value: Double) { values.append(value) }
+/// Collects progress values from inside the callback, synchronously.
+///
+/// It used to be an actor, which forced the callback to do `Task { await record(...) }`
+/// — an unawaited task that had not necessarily run by the time the test read the
+/// values back. That made "was the UI told the download finished?" a race, and it
+/// failed on a loaded CI runner while passing on a developer machine. Worse, the
+/// failure was invisible: `check.sh` reported PASS whenever a run had both a skip and
+/// a failure, so this had been red on CI without anyone being told.
+///
+/// A lock rather than an actor, so recording happens *in* the callback and the value
+/// is there the moment the download returns.
+final class ProgressBox: @unchecked Sendable {
+  private let lock = NSLock()
+  private var storage: [Double] = []
+  func record(_ value: Double) { lock.withLock { storage.append(value) } }
+  var values: [Double] { lock.withLock { storage } }
 }

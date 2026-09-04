@@ -143,7 +143,12 @@ public struct AssemblyAIStreamProvider: StreamingTranscriptionProvider {
   public init(
     keyProvider: @escaping @Sendable () throws -> String?,
     endpoint: URL = AssemblyAIStreamProvider.defaultEndpoint,
-    speechModel: String = "universal-streaming",
+    // AssemblyAI rejects the bare family name: the parameter wants a specific model,
+    // `universal-streaming-english` or `universal-streaming-multilingual`. Sending
+    // "universal-streaming" gets a 400 on every connection — which nothing noticed
+    // while no caller existed, and which appeared as a warning on every dictation the
+    // moment the live preview was wired up.
+    speechModel: String = "universal-streaming-english",
     connector: any WebSocketConnecting = URLSessionWebSocketConnector(),
     reconnectPolicy: ReconnectPolicy = ReconnectPolicy(),
     contextSettings: ContextSettings = .default,

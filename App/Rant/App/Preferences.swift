@@ -14,21 +14,27 @@ final class Preferences: ObservableObject {
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
-    // A UI test starts from first-run state unless it explicitly asked to keep what
-    // the previous launch stored — which is how the "settings persist" test works.
-    if defaults.bool(forKey: "rant-ui-testing"),
-      !defaults.bool(forKey: "rant-ui-testing-keep-preferences")
-    {
-      for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("rant.") {
-        defaults.removeObject(forKey: key)
+    // Debug only, all of it. These hooks erase every setting and skip onboarding, and
+    // a release build has no business carrying a launch argument that wipes the user's
+    // configuration. The UI tests run against the Debug configuration, so gating them
+    // costs nothing and removes the footgun entirely.
+    #if DEBUG
+      // A UI test starts from first-run state unless it explicitly asked to keep what
+      // the previous launch stored — which is how the "settings persist" test works.
+      if defaults.bool(forKey: "rant-ui-testing"),
+        !defaults.bool(forKey: "rant-ui-testing-keep-preferences")
+      {
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("rant.") {
+          defaults.removeObject(forKey: key)
+        }
       }
-    }
-    // The design tour wants the main window, not onboarding. Walking a screenshot
-    // harness through seven steps to reach the screens it came to photograph is
-    // fragile for no benefit — onboarding has its own test.
-    if defaults.bool(forKey: "rant-ui-skip-onboarding") {
-      defaults.set(true, forKey: Key.hasCompletedOnboarding)
-    }
+      // The design tour wants the main window, not onboarding. Walking a screenshot
+      // harness through seven steps to reach the screens it came to photograph is
+      // fragile for no benefit — onboarding has its own test.
+      if defaults.bool(forKey: "rant-ui-skip-onboarding") {
+        defaults.set(true, forKey: Key.hasCompletedOnboarding)
+      }
+    #endif
     self.hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
     self.triggerKey = TriggerKey(rawValue: defaults.string(forKey: Key.triggerKey) ?? "") ?? .rightCommand
     self.activationMode = ActivationMode(rawValue: defaults.string(forKey: Key.activationMode) ?? "") ?? .hybrid
@@ -54,6 +60,9 @@ final class Preferences: ObservableObject {
     self.ollamaModel = defaults.string(forKey: Key.ollamaModel) ?? "llama3.2"
     self.developerMode = defaults.bool(forKey: Key.developerMode)
     self.mcpEnabled = defaults.bool(forKey: Key.mcpEnabled)
+    self.learnFromCorrections = defaults.bool(forKey: Key.learnFromCorrections)
+    self.livePreview = defaults.object(forKey: Key.livePreview) as? Bool ?? true
+    self.liveWords = LiveWordsPreference(rawValue: defaults.string(forKey: Key.liveWords) ?? "") ?? .longDictations
   }
 
   private enum Key {
@@ -76,6 +85,13 @@ final class Preferences: ObservableObject {
     static let contextUseClipboard = "rant.context.clipboard"
     static let contextUseScreenOCR = "rant.context.ocr"
     static let excludedBundleIDs = "rant.context.excluded"
+    static let livePreview = "rant.speech.livePreview"
+    static let liveWords = "rant.overlay.liveWords"
+    static let modeResolver = "rant.modes.resolver"
+    static let mcpSettings = "rant.mcp.settings"
+    static let learnFromCorrections = "rant.learning.enabled"
+    static let styleResolver = "rant.styles.resolver"
+    static let customStyles = "rant.styles.custom"
     static let enhancementProvider = "rant.enhance.provider"
     static let ollamaEndpoint = "rant.enhance.ollamaEndpoint"
     static let ollamaModel = "rant.enhance.ollamaModel"
@@ -92,6 +108,22 @@ final class Preferences: ObservableObject {
   @Published var preferLocalCleanup: Bool { didSet { defaults.set(preferLocalCleanup, forKey: Key.preferLocalCleanup) } }
   @Published var retainAudio: Bool { didSet { defaults.set(retainAudio, forKey: Key.retainAudio) } }
   @Published var audioRetentionDays: Int { didSet { defaults.set(audioRetentionDays, forKey: Key.audioRetentionDays) } }
+
+  /// The two audio preferences as the one policy the engine sweeps against.
+  ///
+  /// The toggle and the day count were stored and displayed but never translated into
+  /// an `AudioRetentionPolicy`, and nothing ever ran a sweep — so "keep it for 24
+  /// hours" kept it forever. Deriving the policy here means the setting and the
+  /// deletion can no longer disagree.
+  var audioRetentionPolicy: AudioRetentionPolicy {
+    guard retainAudio else { return .never }
+    switch audioRetentionDays {
+    case 1: return .oneDay
+    case 7: return .sevenDays
+    case 30: return .thirtyDays
+    default: return .forever
+    }
+  }
   @Published var microphoneUniqueID: String? { didSet { defaults.set(microphoneUniqueID, forKey: Key.microphoneUniqueID) } }
   @Published var languageCode: String? { didSet { defaults.set(languageCode, forKey: Key.languageCode) } }
   @Published var playSounds: Bool { didSet { defaults.set(playSounds, forKey: Key.playSounds) } }
@@ -126,7 +158,162 @@ final class Preferences: ObservableObject {
       preferLocalCleanup: preferLocalCleanup,
       localOnly: localOnly,
       contextSettings: contextSettings,
-      retainAudio: retainAudio)
+      retainAudio: retainAudio,
+      styleResolver: styleResolver,
+      modeResolver: modeResolver)
+  }
+
+  /// Which mode applies where.
+  ///
+  /// Like the style resolver, this had no home: `ModeResolver` was implemented and
+  /// tested and nothing built one, so the Modes screen described a pipeline nothing
+  /// consulted.
+  var modeResolver: ModeResolver {
+    get {
+      guard let data = defaults.data(forKey: Key.modeResolver),
+        var stored = try? JSONDecoder().decode(ModeResolver.self, from: data)
+      else { return ModeResolver() }
+      stored.sessionOverride = nil
+      return stored
+    }
+    set {
+      guard let data = try? JSONEncoder().encode(newValue) else { return }
+      defaults.set(data, forKey: Key.modeResolver)
+      objectWillChange.send()
+    }
+  }
+
+  /// How a writing style is chosen, persisted as JSON.
+  ///
+  /// The Styles screen was a browsable list of instructions that nothing consulted:
+  /// `dictationSettings` never set a style, so `styleInstruction` was always nil and
+  /// every dictation used the provider's default voice regardless of what the screen
+  /// showed. Storing the resolver — with the per-app, per-site and per-category rules
+  /// — is what makes the screen describe something real.
+  var styleResolver: StyleResolver {
+    get {
+      guard let data = defaults.data(forKey: Key.styleResolver),
+        var stored = try? JSONDecoder().decode(StyleResolver.self, from: data)
+      else { return StyleResolver(available: allStyles) }
+      // The built-ins can change between releases; the user's rules are what persist.
+      stored.available = allStyles
+      // A session override is by definition for one dictation, so it never survives
+      // a relaunch even if one was somehow written.
+      stored.sessionOverride = nil
+      return stored
+    }
+    set {
+      var toStore = newValue
+      toStore.available = customStyles
+      guard let data = try? JSONEncoder().encode(toStore) else { return }
+      defaults.set(data, forKey: Key.styleResolver)
+      objectWillChange.send()
+    }
+  }
+
+  /// Styles the user wrote, on top of the built-ins.
+  var customStyles: [WritingStyle] {
+    get {
+      guard let data = defaults.data(forKey: Key.customStyles),
+        let styles = try? JSONDecoder().decode([WritingStyle].self, from: data)
+      else { return [] }
+      return styles
+    }
+    set {
+      guard let data = try? JSONEncoder().encode(newValue) else { return }
+      defaults.set(data, forKey: Key.customStyles)
+      objectWillChange.send()
+    }
+  }
+
+  var allStyles: [WritingStyle] { WritingStyle.builtIns + customStyles }
+
+  /// The local MCP server's configuration.
+  ///
+  /// `mcpEnabled` existed as a lone boolean that nothing read. The server needs rather
+  /// more than a boolean — which collections are exposed, whether write tools are
+  /// allowed, where it binds — and all of it has to persist, so it is stored whole.
+  var mcpSettings: MCPSettings {
+    get {
+      guard let data = defaults.data(forKey: Key.mcpSettings),
+        let stored = try? JSONDecoder().decode(MCPSettings.self, from: data)
+      else { return MCPSettings(enabled: mcpEnabled) }
+      return stored
+    }
+    set {
+      guard let data = try? JSONEncoder().encode(newValue) else { return }
+      defaults.set(data, forKey: Key.mcpSettings)
+      // Kept in step so the old key stays truthful for anything still reading it.
+      if mcpEnabled != newValue.enabled { mcpEnabled = newValue.enabled }
+      objectWillChange.send()
+    }
+  }
+
+  /// Opt-in learning from corrections. Off unless the user says otherwise — the
+  /// feature watches what you type after Rant inserts text, and that is not something
+  /// to switch on for somebody.
+  @Published var learnFromCorrections: Bool {
+    didSet { defaults.set(learnFromCorrections, forKey: Key.learnFromCorrections) }
+  }
+
+  /// Show words in the recorder while you are still speaking.
+  ///
+  /// Costs a second connection to the speech provider for the same audio, which is
+  /// why it is a switch rather than always on — and why local-only refuses it outright
+  /// regardless of what this says.
+  @Published var livePreview: Bool {
+    didSet { defaults.set(livePreview, forKey: Key.livePreview) }
+  }
+
+  /// When the recorder may grow to show the words as they arrive.
+  ///
+  /// Long dictations only by default: for a short phrase the bar would expand and
+  /// collapse before anybody read it, which is motion for its own sake.
+  @Published var liveWords: LiveWordsPreference {
+    didSet { defaults.set(liveWords.rawValue, forKey: Key.liveWords) }
+  }
+
+  /// Put every setting back to its default.
+  ///
+  /// Removes the `rant.` keys and reloads, rather than assigning defaults one at a
+  /// time — a list of assignments is a list somebody forgets to extend when they add a
+  /// setting, and a reset that silently misses one is worse than none.
+  ///
+  /// Deliberately settings only. Transcripts, dictionary and snippets live in the
+  /// database and are cleared from Privacy, where the warning can say what is being
+  /// destroyed.
+  func resetAll() {
+    for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("rant.") {
+      defaults.removeObject(forKey: key)
+    }
+    hasCompletedOnboarding = false
+    triggerKey = .rightCommand
+    activationMode = .hybrid
+    cleanupLevel = .medium
+    speechProvider = "assemblyai"
+    localOnly = false
+    preferLocalCleanup = false
+    retainAudio = false
+    audioRetentionDays = 0
+    microphoneUniqueID = nil
+    languageCode = nil
+    playSounds = true
+    overlayAlwaysVisible = false
+    launchAtLogin = false
+    contextEnabled = true
+    contextAllowCloud = true
+    contextUseClipboard = false
+    contextUseScreenOCR = false
+    excludedBundleIDs = ContextSettings.defaultExclusions
+    enhancementProvider = "none"
+    ollamaEndpoint = "http://localhost:11434"
+    ollamaModel = "llama3.2"
+    developerMode = false
+    mcpEnabled = false
+    learnFromCorrections = false
+    livePreview = true
+    liveWords = .longDictations
+    objectWillChange.send()
   }
 
   var hotkeyConfiguration: HotkeyEngine.Configuration {

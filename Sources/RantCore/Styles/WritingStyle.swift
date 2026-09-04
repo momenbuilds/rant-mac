@@ -96,7 +96,7 @@ public struct WritingStyle: Equatable, Sendable, Identifiable, Codable {
 /// rather than clever: a per-site override beats a per-app override, which beats the
 /// category default, which beats the global default. A user who sets something
 /// specific should never be surprised by a general rule winning.
-public struct StyleResolver: Sendable {
+public struct StyleResolver: Equatable, Sendable, Codable {
   /// Style name to use in a specific app, keyed by bundle identifier.
   public var perApp: [String: String]
   /// Style name to use on a specific site, keyed by host.

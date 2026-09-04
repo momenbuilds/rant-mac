@@ -16,14 +16,22 @@ struct TransformsView: View {
     VStack(alignment: .leading, spacing: Theme.Spacing.large) {
       PageTitle(
         title: "Transforms",
-        subtitle: "Select text in any app, press your transform key, and choose one.")
+        subtitle: "Select text in any app, press \(CarbonHotkey.Combination.optionShiftT.displayName), and choose one.",
+        accessory: AnyView(
+          Button {
+            model.beginTransform()
+          } label: {
+            Label("Transform selection", systemImage: "wand.and.stars")
+          }
+          .buttonStyle(.clay)
+          .help("Reads whatever is selected in the app you were last using")))
 
       Card(fill: Theme.claySoft) {
         HStack(spacing: 10) {
           Image(systemName: "info.circle")
             .font(.system(size: 12)).foregroundStyle(Theme.clay)
             .accessibilityHidden(true)
-          Text("Every transform shows you the result as a diff before it replaces anything. You can accept it, reject it, or edit it first.")
+          Text("Every transform shows you the result as a diff before it replaces anything. You can accept it, reject it, copy it, or edit it first. Reading your selection needs Accessibility permission.")
             .font(.system(size: 12.5)).foregroundStyle(Theme.ink)
             .fixedSize(horizontal: false, vertical: true)
           Spacer()

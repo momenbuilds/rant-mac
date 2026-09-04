@@ -4,7 +4,8 @@ import SwiftUI
 /// The settings panes, as one list so the picker and the content can never disagree
 /// about what exists.
 enum SettingsPane: String, CaseIterable, Identifiable {
-  case general, speech, intelligence, privacy, diagnostics
+  case general, speech, intelligence, privacy, notetaker, integrations, advanced,
+    diagnostics
 
   var id: String { rawValue }
 
@@ -14,6 +15,9 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case .speech: "Speech"
     case .intelligence: "Intelligence"
     case .privacy: "Privacy"
+    case .notetaker: "Notetaker"
+    case .integrations: "Integrations"
+    case .advanced: "Advanced"
     case .diagnostics: "Diagnostics"
     }
   }
@@ -24,6 +28,9 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case .speech: "waveform"
     case .intelligence: "wand.and.stars"
     case .privacy: "hand.raised"
+    case .notetaker: "person.2.wave.2"
+    case .integrations: "puzzlepiece.extension"
+    case .advanced: "wrench.and.screwdriver"
     case .diagnostics: "stethoscope"
     }
   }
@@ -59,6 +66,9 @@ struct SettingsView: View {
         case .speech: SpeechSettings()
         case .intelligence: IntelligenceSettings()
         case .privacy: PrivacySettings()
+        case .notetaker: NotetakerSettings()
+        case .integrations: IntegrationsSettings()
+        case .advanced: AdvancedSettings()
         case .diagnostics: DiagnosticsSettings()
         }
       }
@@ -92,6 +102,30 @@ struct SettingsView: View {
     .background(
       RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
         .fill(Theme.sunken))
+  }
+}
+
+/// A live input level, so "is this microphone working" has an answer that does not
+/// require recording something and reading it back.
+struct MicrophoneMeter: View {
+  let level: Float
+  private let segments = 18
+
+  var body: some View {
+    HStack(spacing: 2) {
+      ForEach(0..<segments, id: \.self) { index in
+        // A little gamma so quiet speech still moves several segments; a linear meter
+        // on RMS looks broken at conversational volume.
+        let threshold = Float(index + 1) / Float(segments)
+        let scaled = min(1, powf(max(level, 0), 0.5) * 1.6)
+        RoundedRectangle(cornerRadius: 1, style: .continuous)
+          .fill(scaled >= threshold ? Theme.clay : Theme.hairline)
+          .frame(width: 3, height: index < segments - 4 ? 9 : 12)
+      }
+    }
+    .animation(.linear(duration: 0.05), value: level)
+    .accessibilityLabel("Input level")
+    .accessibilityValue("\(Int(min(max(level, 0), 1) * 100)) percent")
   }
 }
 
@@ -146,7 +180,28 @@ struct GeneralSettings: View {
 
       Section("Interface") {
         Toggle("Keep the recorder visible when idle", isOn: $preferences.overlayAlwaysVisible)
+          .accessibilityIdentifier("settings.overlayAlwaysVisible")
         Toggle("Play a sound when recording starts and stops", isOn: $preferences.playSounds)
+          .accessibilityIdentifier("settings.playSounds")
+      }
+
+      Section("Recording overlay") {
+        Picker("Show live words", selection: $preferences.liveWords) {
+          ForEach(LiveWordsPreference.allCases, id: \.self) { option in
+            Text(option.displayName).tag(option)
+          }
+        }
+        .accessibilityIdentifier("settings.liveWords")
+        Text("The recorder stays small while you talk. On a longer dictation it can widen to show the last few words — useful for checking it heard you, and noise for a short phrase that would expand and collapse before you read it.")
+          .font(.caption).foregroundStyle(.secondary)
+
+        HStack {
+          Button("Reset position") { model.overlay.resetPosition() }
+            .buttonStyle(.quiet)
+          Spacer()
+        }
+        Text("Drag the recorder anywhere; Rant remembers where you put it, relative to the display you are working on.")
+          .font(.caption).foregroundStyle(.secondary)
       }
     }
     .formStyle(.grouped)
@@ -164,14 +219,32 @@ struct SpeechSettings: View {
 
   var body: some View {
     Form {
+      // Built from the same registry the dictation session resolves against, so the
+      // list cannot drift from what actually runs. It previously offered exactly one
+      // engine while the code ignored the selection entirely.
       Section("Speech engine") {
         Picker("Engine", selection: $preferences.speechProvider) {
-          Text("AssemblyAI — your own key").tag("assemblyai")
+          ForEach(model.speechProviderRegistry().descriptors()) { descriptor in
+            Text(descriptor.displayName).tag(descriptor.identifier)
+          }
         }
-        HStack {
-          PrivacyBadge(level: preferences.localOnly ? .onDevice : .network)
-          Spacer()
+        ForEach(model.speechProviderRegistry().descriptors()) { descriptor in
+          if descriptor.identifier == preferences.speechProvider {
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.tight) {
+              PrivacyBadge(level: descriptor.sendsAudioOffDevice ? .network : .onDevice)
+              Text(descriptor.privacyLabel)
+                .font(.caption).foregroundStyle(.secondary)
+              Spacer()
+            }
+            // Says why an engine cannot be used, instead of letting the user find out
+            // at the first dictation.
+            if let explanation = descriptor.status.explanation {
+              Text(explanation).font(.caption).foregroundStyle(Theme.live)
+            }
+          }
         }
+        Text("The on-device engine uses the speech model already on your Mac. It needs no key and no download, and Rant refuses to run it over the network — if your Mac cannot recognise your language offline, you get an error rather than an upload.")
+          .font(.caption).foregroundStyle(.secondary)
       }
 
       Section("AssemblyAI key") {
@@ -200,6 +273,33 @@ struct SpeechSettings: View {
           .font(.caption).foregroundStyle(.secondary)
       }
 
+      // The device preference existed and was never handed to the capture, and there
+      // was nowhere to set it. Both halves are here now: the list, and a meter that
+      // proves the chosen microphone is the one being heard.
+      Section("Live preview") {
+        Toggle("Show words while I am still speaking", isOn: $preferences.livePreview)
+          .onChange(of: preferences.livePreview) { _, _ in model.buildSession() }
+        Text("Streams the audio to AssemblyAI a second time so the recorder can show interim text. The on-device engine does not stream, and Local only refuses it outright — the preview is not worth opening a connection you asked Rant not to open.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Microphone") {
+        Picker("Input", selection: Binding(
+          get: { preferences.microphoneUniqueID ?? "" },
+          set: { preferences.microphoneUniqueID = $0.isEmpty ? nil : $0 })
+        ) {
+          Text("System default").tag("")
+          ForEach(model.availableMicrophones) { device in
+            Text(device.name).tag(device.uniqueID)
+          }
+        }
+        LabeledContent("Level") {
+          MicrophoneMeter(level: model.meterLevel)
+        }
+        Text("The meter moves when Rant can hear you. If it stays flat, macOS has not granted the microphone, or the wrong input is selected.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
       Section("Language") {
         Picker("Language", selection: Binding(
           get: { preferences.languageCode ?? "auto" },
@@ -219,6 +319,10 @@ struct SpeechSettings: View {
       }
     }
     .formStyle(.grouped)
+    // Only while this pane is on screen: keeping the engine warm for a meter nobody
+    // is looking at would hold the microphone open for no reason.
+    .onAppear { model.beginLevelMonitoring() }
+    .onDisappear { model.endLevelMonitoring() }
   }
 
   private func save() {
@@ -348,6 +452,284 @@ struct PrivacySettings: View {
       Button("Cancel", role: .cancel) {}
     } message: {
       Text("Transcripts, statistics and any retained audio, gone from this Mac. Your API key stays in the Keychain until you remove it there.")
+    }
+  }
+}
+
+/// Notetaker settings — capture, summaries, calendar, retention.
+struct NotetakerSettings: View {
+  @EnvironmentObject private var model: AppModel
+  @EnvironmentObject private var preferences: Preferences
+  @EnvironmentObject private var permissions: Permissions
+  @State private var calendarGranted = false
+
+  var body: some View {
+    Form {
+      Section("Capture") {
+        LabeledContent("System audio") {
+          HStack(spacing: Theme.Spacing.tight) {
+            Text(permissions.screenRecording.isGranted ? "Granted" : "Not granted")
+              .foregroundStyle(
+                permissions.screenRecording.isGranted ? Theme.moss : Theme.clay)
+            if !permissions.screenRecording.isGranted {
+              Button("Grant…") { permissions.requestScreenRecording() }
+                .buttonStyle(.quiet)
+            }
+          }
+        }
+        Text("Without it Rant records only your microphone, so a meeting has your half and not theirs. macOS puts system-audio capture behind Screen Recording; Rant asks for the smallest frame the API accepts and never reads one.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Summaries") {
+        LabeledContent(
+          "Summariser",
+          value: preferences.enhancementProvider == "none"
+            ? "Built in (no model)" : preferences.enhancementProvider)
+        Text(
+          preferences.localOnly
+            ? "Local only is on, so meeting transcripts are never sent to a model that leaves this Mac. Summaries come from the built-in structural extraction."
+            : "A remote enhancer sees the meeting transcript. Turn on Local only in Privacy to keep summarising entirely on this Mac."
+        )
+        .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Calendar") {
+        LabeledContent("Upcoming events") {
+          HStack(spacing: Theme.Spacing.tight) {
+            Text(calendarGranted ? "Granted" : "Not granted")
+              .foregroundStyle(calendarGranted ? Theme.moss : Theme.inkMuted)
+            if !calendarGranted {
+              Button("Grant…") {
+                Task {
+                  await model.requestCalendarAccess()
+                  calendarGranted = await model.hasCalendarAccess
+                }
+              }
+              .buttonStyle(.quiet)
+            }
+          }
+        }
+        if !model.upcomingEvents.isEmpty {
+          ForEach(model.upcomingEvents, id: \.id) { event in
+            LabeledContent(event.title) {
+              Text(event.startDate, format: .dateTime.hour().minute())
+                .foregroundStyle(.secondary)
+            }
+          }
+        }
+        Text("Used only to name a meeting and show its join link. Your calendar is never uploaded.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+    }
+    .formStyle(.grouped)
+    .task {
+      calendarGranted = await model.hasCalendarAccess
+      if calendarGranted { await model.refreshUpcomingEvents() }
+    }
+  }
+}
+
+/// Integrations — the local MCP server, and the shortcuts other tools can use.
+struct IntegrationsSettings: View {
+  @EnvironmentObject private var model: AppModel
+  @EnvironmentObject private var preferences: Preferences
+
+  var body: some View {
+    Form {
+      Section("Local MCP server") {
+        Toggle(
+          "Let local MCP clients read my Rant data",
+          isOn: Binding(
+            get: { preferences.mcpSettings.enabled },
+            set: { on in
+              var settings = preferences.mcpSettings
+              settings.enabled = on
+              preferences.mcpSettings = settings
+              model.applyMCPSettings()
+            }))
+          .accessibilityIdentifier("settings.mcpEnabled")
+
+        if preferences.mcpSettings.enabled {
+          LabeledContent("Address") {
+            Text("\(preferences.mcpSettings.host):\(model.mcpController?.boundPort ?? preferences.mcpSettings.port)")
+              .monospaced()
+          }
+          LabeledContent("Status") {
+            Text(model.mcpController?.isRunning == true ? "Listening" : "Not running")
+              .foregroundStyle(
+                model.mcpController?.isRunning == true ? Theme.moss : Theme.clay)
+          }
+          if let error = model.mcpController?.lastError {
+            Text(error).font(.caption).foregroundStyle(Theme.live)
+          }
+
+          // Empty is a working configuration: the server answers tools/list and
+          // refuses every tool. Exposure is opt-in per collection.
+          ForEach(MCPCollection.selectable, id: \.self) { collection in
+            Toggle(
+              collection.displayName,
+              isOn: Binding(
+                get: { preferences.mcpSettings.collections.contains(collection) },
+                set: { on in
+                  var settings = preferences.mcpSettings
+                  if on {
+                    settings.collections.insert(collection)
+                  } else {
+                    settings.collections.remove(collection)
+                  }
+                  preferences.mcpSettings = settings
+                  model.applyMCPSettings()
+                }))
+          }
+
+          Toggle(
+            "Allow tools that start and stop dictation",
+            isOn: Binding(
+              get: { preferences.mcpSettings.allowWrite },
+              set: { on in
+                var settings = preferences.mcpSettings
+                settings.allowWrite = on
+                preferences.mcpSettings = settings
+                model.applyMCPSettings()
+              }))
+        }
+
+        Text("Off by default. The server binds to loopback only — a non-loopback address is refused before a socket is created — and it never exposes your API keys. Every request is written to a local audit log.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
+      // The whole surface of "what a voice can cause", in one list, with the
+      // permission each one carries. The layer was implemented and constructed
+      // nowhere outside its own tests.
+      Section("Actions") {
+        if let actions = model.actions {
+          ForEach(actions.catalogue, id: \.id) { action in
+            HStack(alignment: .firstTextBaseline) {
+              VStack(alignment: .leading, spacing: 2) {
+                Text(action.title).font(.system(size: 12.5))
+                HStack(spacing: 6) {
+                  Chip(text: permissionName(action.permission))
+                  if action.requiresConfirmation {
+                    Chip(text: "asks first", tint: Theme.clay, fill: Theme.claySoft)
+                  }
+                }
+              }
+              Spacer()
+              if action.fields.isEmpty {
+                Button("Run") { actions.run(action, values: [:]) }
+                  .buttonStyle(.quiet)
+              } else {
+                Text(action.fields.map(\.name).joined(separator: ", "))
+                  .font(.caption).foregroundStyle(Theme.inkFaint)
+              }
+            }
+          }
+          if let waiting = actions.pending {
+            VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
+              Text(waiting.summary)
+                .font(.system(size: 12.5)).foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+              HStack {
+                Button("Do it") { actions.confirm(waiting) }.buttonStyle(.clay)
+                Button("Cancel") { actions.cancelPending() }.buttonStyle(.quiet)
+              }
+            }
+            .padding(Theme.Spacing.small)
+            .background(Theme.claySoft, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+          }
+          if let result = actions.lastResult {
+            Text(result).font(.caption).foregroundStyle(Theme.moss)
+          }
+          if let error = actions.lastError {
+            Text(error).font(.caption).foregroundStyle(Theme.live)
+          }
+        }
+        Text("Rant has no unrestricted shell access. Each of these is a registered capability with a fixed input schema and a permission class; anything that reaches past this Mac asks before it runs, and running a program you configure is unavailable until you configure one.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Keyboard") {
+        LabeledContent(
+          "Transform selection",
+          value: CarbonHotkey.Combination.optionShiftT.displayName)
+        LabeledContent(
+          "Command mode",
+          value: CarbonHotkey.Combination.optionShiftC.displayName)
+        LabeledContent("Dictate without Accessibility", value: model.fallbackShortcut ?? "—")
+        Text("Command mode is a separate key on purpose: “make this shorter” has to be an instruction, not six words typed into your document.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+    }
+    .formStyle(.grouped)
+  }
+}
+
+/// Named for the consequence rather than the enum case: a permission list nobody can
+/// read is a permission list nobody checks.
+private func permissionName(_ permission: ActionPermission) -> String {
+  switch permission {
+  case .textOnly: "writes text"
+  case .clipboard: "uses the clipboard"
+  case .createsLocalData: "saves on this Mac"
+  case .opensURL: "opens a link"
+  case .runsCommand: "runs a program"
+  }
+}
+
+/// Advanced — developer mode, logs, and the reset switches.
+struct AdvancedSettings: View {
+  @EnvironmentObject private var model: AppModel
+  @EnvironmentObject private var preferences: Preferences
+  @State private var confirmingReset = false
+
+  var body: some View {
+    Form {
+      Section("Developer") {
+        Toggle("Developer mode", isOn: $preferences.developerMode)
+        Text("Keeps technical casing — userId, ContentView.swift, async throws — instead of prose-formatting them.")
+          .font(.caption).foregroundStyle(.secondary)
+
+        Toggle("Learn from my corrections", isOn: $preferences.learnFromCorrections)
+          .onChange(of: preferences.learnFromCorrections) { _, on in
+            model.makeLearningIfNeeded()?.update(enabled: on)
+          }
+        Text("After Rant inserts text, it briefly watches the same field for edits and proposes a dictionary rule. Only the text Rant inserted and the part you changed are compared — never the rest of the document — and nothing is saved without you accepting it.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Logs") {
+        LabeledContent("Log file", value: RantLog.fileURL?.path ?? "Not writing to disk")
+        HStack {
+          Button("Show in Finder") {
+            guard let url = RantLog.fileURL else { return }
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+          }
+          .buttonStyle(.quiet)
+          .disabled(RantLog.fileURL == nil)
+          Spacer()
+        }
+        Text("Transcripts and context are never written to the log at any level. It records what happened, not what you said.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Reset") {
+        Button("Run onboarding again") { preferences.hasCompletedOnboarding = false }
+          .buttonStyle(.quiet)
+        Button("Reset every setting…", role: .destructive) { confirmingReset = true }
+          .buttonStyle(.quiet)
+        Text("Resetting settings does not delete your transcripts. Use Privacy → Clear local data for that.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+    }
+    .formStyle(.grouped)
+    .confirmationDialog(
+      "Reset every setting?", isPresented: $confirmingReset, titleVisibility: .visible
+    ) {
+      Button("Reset", role: .destructive) { preferences.resetAll() }
+      Button("Keep them", role: .cancel) {}
+    } message: {
+      Text("Your dictation key, engine choice, styles and privacy switches go back to their defaults. Your transcripts, dictionary and snippets are untouched.")
     }
   }
 }

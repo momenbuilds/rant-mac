@@ -43,6 +43,10 @@ struct DictionaryView: View {
               .accessibilityIdentifier("dictionary.addToolbar")
           }))
 
+      if let learning = model.learning, !learning.candidates.isEmpty {
+        SuggestedRules(learning: learning) { reload() }
+      }
+
       if !entries.isEmpty { SearchField(query: $query, prompt: "Search your dictionary") }
 
       if shown.isEmpty {
@@ -433,5 +437,63 @@ struct SnippetEditor: View {
     .padding(Theme.Spacing.large)
     .frame(width: 460)
     .background(Theme.paper)
+  }
+}
+
+/// Rules Rant noticed you making, waiting for a yes or a no.
+///
+/// Nothing here is in effect. A candidate is inert until it is accepted — the dictation
+/// pipeline never reads this table — which is what makes it safe to propose something
+/// on a guess. The user's answer is what creates a dictionary entry.
+struct SuggestedRules: View {
+  @ObservedObject var learning: LearningObserver
+  var onAccepted: () -> Void
+
+  var body: some View {
+    Section2(
+      "Noticed from your corrections",
+      subtitle: "Nothing changes until you accept it."
+    ) {
+      Card(padding: 0) {
+        VStack(spacing: 0) {
+          ForEach(Array(learning.candidates.enumerated()), id: \.element.id) {
+            index, candidate in
+            HStack(spacing: Theme.Spacing.small) {
+              VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                  Text(candidate.spoken)
+                    .font(.system(size: 13)).foregroundStyle(Theme.inkMuted)
+                  Image(systemName: "arrow.right")
+                    .font(.system(size: 10)).foregroundStyle(Theme.inkFaint)
+                    .accessibilityHidden(true)
+                  Text(candidate.written)
+                    .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink)
+                }
+                Text(
+                  candidate.occurrences > 1
+                    ? "You corrected this \(candidate.occurrences) times"
+                    : "You corrected this once")
+                  .font(.system(size: 11)).foregroundStyle(Theme.inkFaint)
+              }
+              Spacer(minLength: Theme.Spacing.small)
+              Button("Add") {
+                learning.accept(candidate)
+                onAccepted()
+              }
+              .buttonStyle(.quiet)
+              Button("No") { learning.reject(candidate) }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.inkFaint)
+            }
+            .padding(.horizontal, Theme.Spacing.medium)
+            .padding(.vertical, Theme.Spacing.small)
+
+            if index < learning.candidates.count - 1 {
+              Divider().overlay(Theme.hairline).padding(.leading, Theme.Spacing.medium)
+            }
+          }
+        }
+      }
+    }
   }
 }

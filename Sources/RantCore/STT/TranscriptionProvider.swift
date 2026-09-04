@@ -190,6 +190,11 @@ public enum TranscriptionError: Error, Equatable, LocalizedError {
   case modelUnavailable(String)
   /// The user chose local-only and something asked to go to the network.
   case localOnlyViolation(provider: String)
+  /// macOS speech recognition has not been permitted for Rant.
+  case speechRecognitionDenied
+  /// The system recogniser cannot run without a network for this language. Refused
+  /// rather than satisfied over the network, because the provider promises otherwise.
+  case onDeviceRecognitionUnavailable(String)
 
   public var errorDescription: String? {
     switch self {
@@ -215,6 +220,10 @@ public enum TranscriptionError: Error, Equatable, LocalizedError {
       "The local model \(name) is not downloaded yet."
     case .localOnlyViolation(let provider):
       "\(provider) needs the network, and Rant is set to local only. Nothing was sent."
+    case .speechRecognitionDenied:
+      "macOS has not allowed Rant to use speech recognition. Turn it on in System Settings → Privacy & Security → Speech Recognition."
+    case .onDeviceRecognitionUnavailable(let language):
+      "This Mac cannot recognise \(language) without the network, so Rant stopped rather than sending your audio anywhere."
     }
   }
 
@@ -223,7 +232,8 @@ public enum TranscriptionError: Error, Equatable, LocalizedError {
     switch self {
     case .network, .rateLimited, .http, .malformedResponse: true
     case .apiKeyMissing, .unauthorized, .audioTooLong, .audioEmpty, .cancelled,
-      .modelUnavailable, .localOnlyViolation:
+      .modelUnavailable, .localOnlyViolation, .speechRecognitionDenied,
+      .onDeviceRecognitionUnavailable:
       false
     }
   }

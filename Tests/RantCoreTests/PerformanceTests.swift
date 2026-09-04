@@ -202,6 +202,26 @@ final class PerformanceTests: XCTestCase {
   /// faster than the equivalent `LIKE` scan over the same rows. If someone replaces
   /// the MATCH with a LIKE, or the triggers stop maintaining the index, the ratio
   /// collapses towards one and this fails even on a machine where both are fast.
+  ///
+  /// "Equivalent" has to be earned. The scan used to be a `COUNT(*)`, which compares
+  /// the indexed path *decoding rows* against the scanned path *counting* them — so
+  /// the ratio partly measured decode cost, and adding a column to the transcript
+  /// narrowed it enough to fail on a fast runner. Both sides now select the same
+  /// columns, so what is left in the comparison is finding the rows.
+  /// The same rows the FTS path returns, found by scanning instead of by the index.
+  ///
+  /// Selects the same columns rather than counting, so the two measurements differ in
+  /// how the rows are located and in nothing else.
+  private func scanWithLike(_ needle: String, in database: Database) throws -> [String] {
+    try database.query(
+      """
+      SELECT id, created_at, raw_text, final_text, provider
+      FROM transcripts WHERE final_text LIKE ?
+      """,
+      [.text("%\(needle)%")]
+    ) { $0.string(3) }
+  }
+
   func testHistorySearchStaysFastAtTensOfThousandsOfRows() throws {
     let (store, database) = try freshStore()
     let rows = 40_000
@@ -214,9 +234,7 @@ final class PerformanceTests: XCTestCase {
     // Warm both paths so the comparison measures the index rather than the
     // first-touch cost of compiling a statement and faulting in pages.
     _ = try store.search(needle)
-    _ = try database.query(
-      "SELECT COUNT(*) FROM transcripts WHERE final_text LIKE ?", [.text("%\(needle)%")]
-    ) { $0.int(0) }
+    _ = try scanWithLike(needle, in: database)
 
     var results: [TranscriptSearchResult] = []
     let indexed = try duration(of: {
@@ -225,10 +243,8 @@ final class PerformanceTests: XCTestCase {
     XCTAssertFalse(results.isEmpty, "the corpus must actually contain the needle")
 
     let scanned = try duration(of: {
-      let matches = try database.query(
-        "SELECT COUNT(*) FROM transcripts WHERE final_text LIKE ?", [.text("%\(needle)%")]
-      ) { $0.int(0) }
-      XCTAssertEqual(matches.first, rows / needleEvery)
+      let matches = try scanWithLike(needle, in: database)
+      XCTAssertEqual(matches.count, rows / needleEvery)
     })
 
     XCTAssertLessThan(
