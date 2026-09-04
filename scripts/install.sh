@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build and install Rant from source.
 #
-#   curl -fsSL https://raw.githubusercontent.com/momenweb/rant-mac/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/momenbuilds/rant-mac/main/scripts/install.sh | bash
 #
 # Builds locally rather than downloading a binary, because without a Developer ID
 # certificate a downloaded build is refused by Gatekeeper — and teaching people to
@@ -9,7 +9,7 @@
 # eventually get them hurt. A build you made yourself needs none of that.
 set -euo pipefail
 
-REPO="https://github.com/momenweb/rant-mac.git"
+REPO="https://github.com/momenbuilds/rant-mac.git"
 DIR="${RANT_DIR:-$HOME/.rant-src}"
 
 say() { printf '\033[1m==>\033[0m %s\n' "$1"; }

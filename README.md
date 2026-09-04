@@ -26,7 +26,7 @@ let go, and clean text lands at your cursor in whatever app you were already usi
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/momenweb/rant-mac/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/momenbuilds/rant-mac/main/scripts/install.sh | bash
 ```
 
 That clones, builds a universal binary, installs it to `/Applications`, and launches it.
@@ -36,7 +36,7 @@ It takes a couple of minutes the first time.
 <summary>Or build it yourself</summary>
 
 ```bash
-git clone https://github.com/momenweb/rant-mac && cd rant-mac
+git clone https://github.com/momenbuilds/rant-mac && cd rant-mac
 bash scripts/bootstrap.sh          # checks the toolchain
 CONFIG=Release bash scripts/dev-build.sh
 ```
