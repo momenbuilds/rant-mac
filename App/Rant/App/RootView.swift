@@ -68,10 +68,13 @@ struct MainWindow: View {
         switch selection {
         case .home: HomeView()
         case .history: HistoryView()
+        case .insights: InsightsView()
         case .dictionary: DictionaryView()
         case .snippets: SnippetsView()
+        case .styles: StylesView()
+        case .scratchpad: ScratchpadView()
+        case .migrate: MigrateView()
         case .settings: SettingsView()
-        default: ComingSoonView(destination: selection)
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)

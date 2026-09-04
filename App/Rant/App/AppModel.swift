@@ -27,6 +27,7 @@ final class AppModel: ObservableObject {
   private var database: Database?
   private(set) var store: SQLiteTranscriptStore?
   private(set) var vocabulary: VocabularyStore?
+  private(set) var notes: NoteStore?
   private var session: DictationSession?
   private var hotkeys: HotkeyEngine?
   private let microphone = MicrophoneCapture()
@@ -75,6 +76,7 @@ final class AppModel: ObservableObject {
       self.database = database
       self.store = SQLiteTranscriptStore(database: database)
       self.vocabulary = VocabularyStore(database: database)
+      self.notes = NoteStore(database: database)
       log.info("database ready at schema \(database.userVersion)")
     } catch {
       log.error("could not open the database: \(error.localizedDescription)")
@@ -313,7 +315,19 @@ final class AppModel: ObservableObject {
 
   // MARK: - Diagnostics
 
+  /// Exposed so the screens that own their own engine — Insights, Migrate — can
+  /// build one against the same connection rather than opening a second.
+  var databaseHandle: Database? { database }
+
   var databaseSizeBytes: Int { database?.pageCountBytes ?? 0 }
+
+  /// Writes plain text out through a save panel.
+  func exportText(_ text: String, suggestedName: String) {
+    let panel = NSSavePanel()
+    panel.nameFieldStringValue = suggestedName
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    try? Data(text.utf8).write(to: url)
+  }
 
   var hasAPIKey: Bool {
     ((try? secrets.read(.assemblyAI)) ?? nil)?.isEmpty == false
