@@ -43,16 +43,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## VoiceInk — GPLv3, NOT used
+## No GPL-licensed code
 
-<https://github.com/Beingpax/VoiceInk>
+Some dictation tools in this space are licensed GPLv3, which is incompatible with
+Rant's MIT licence in the copy direction.
 
-VoiceInk is licensed GPLv3, which is incompatible with Rant's MIT licence in the
-copy direction. **No VoiceInk source code, in original or translated form, is
-present in this repository.** Its public documentation informed our understanding
-of what features a modes-based dictation app should have. Ideas and observed
-behaviour are not copyrightable; the code was not copied. See `docs/DECISIONS.md`
-D-001 and the licence boundary section of `docs/COMPETITOR_AUDIT.md`.
+**No GPL-licensed source code, in original or translated form, is present in this
+repository.** Every file under `Sources/` and `App/` was written from the product
+requirements and from Apple's platform APIs. Where a competitor's public behaviour
+informed a design decision, that is an idea rather than an expression, and ideas are
+not copyrightable — but the code was not copied, translated, or adapted.
+
+CI enforces the part a machine can check: no GPL licence header may appear anywhere in
+the tree. See `docs/DECISIONS.md` D-001.
 
 ## Wispr Flow, Superwhisper — proprietary, NOT used
 

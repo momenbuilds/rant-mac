@@ -82,8 +82,8 @@ jobs:
             echo "cannot be copied into it — behaviour may be studied, code may not."
             exit 1
           fi
-          grep -q 'VoiceInk' THIRD_PARTY_NOTICES.md || {
-            echo "THIRD_PARTY_NOTICES.md no longer records the VoiceInk boundary."
+          grep -qi 'No GPL-licensed source code' THIRD_PARTY_NOTICES.md || {
+            echo "THIRD_PARTY_NOTICES.md no longer records the GPL boundary."
             exit 1
           }
           echo "clean"

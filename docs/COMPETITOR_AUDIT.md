@@ -5,7 +5,7 @@ Researched 2026-09-04 against current public documentation and public source.
 | Product | Licence | What we did |
 |---|---|---|
 | [Wispr Flow](https://wisprflow.ai/) · [docs](https://docs.wisprflow.ai/) | Proprietary | Read public site + help centre. No assets, branding or UI copied. |
-| [VoiceInk](https://github.com/Beingpax/VoiceInk) · [docs](https://tryvoiceink.com/docs/introduction) | **GPLv3** | Read docs and public behaviour only. **No source copied or translated.** |
+| VoiceInk | **GPLv3** | Public documentation and observed behaviour only. **No source copied or translated.** |
 | [Blurt](https://github.com/AssemblyAI/blurt) | MIT | Read source. Reused *factual API contract knowledge* (AssemblyAI dictation wire format). Attribution in `THIRD_PARTY_NOTICES.md`. |
 | [Superwhisper](https://superwhisper.com/) | Proprietary | Public site only. |
 
