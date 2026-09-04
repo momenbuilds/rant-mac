@@ -7,7 +7,9 @@ the exhaustive one and `docs/THREAT_MODEL.md` is the honest one.
 - **No telemetry.** No analytics SDK and no crash-reporting SDK is linked into the
   binary. With no API key configured, Rant makes zero network requests.
 - **Your keys stay in the Keychain.** Never in preferences, never in logs, never in
-  a file, never in a commit.
+  a file, never in a commit. Rant uses the data-protection keychain, which decides
+  access by the application's identity rather than by an access list naming exact
+  binaries — so a Rant update does not make macOS ask for your login password again.
 - **Your data stays in one folder.** `~/Library/Application Support/Rant/`. Delete
   that folder and Rant knows nothing about you.
 - **Audio is not retained by default.** If you turn retention on you choose 24 hours,

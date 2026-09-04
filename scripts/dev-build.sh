@@ -61,6 +61,12 @@ cat <<NOTE
 Installed: $TARGET
 Bundle id: $(defaults read "$TARGET/Contents/Info" CFBundleIdentifier 2>/dev/null || echo unknown)
 
+If macOS asks for your login password when Rant reads your API key, that is the old
+file keychain noticing the app's signature changed. Rant now stores new keys in the
+data-protection keychain, which has no per-binary access list and does not ask again —
+but a key saved by an older build still lives in the file keychain. Re-saving it once
+in Settings → Speech moves it across and stops the prompts.
+
 If the dictation key does nothing, macOS has probably kept an old grant for a
 previous build. Reset it and grant again:
 

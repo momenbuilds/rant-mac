@@ -53,8 +53,25 @@ public struct KeychainSecretStore: SecretStoring {
     self.service = service
   }
 
-  private func baseQuery(_ key: SecretKey) -> [String: Any] {
-    [
+  /// Whether to use the data-protection keychain rather than the older file keychain.
+  ///
+  /// This is not a detail. The file keychain guards each item with an access-control
+  /// list naming the exact binaries allowed to read it, and "the exact binary" means a
+  /// specific code signature. Every rebuild of an ad-hoc-signed app is a new signature,
+  /// so the ACL no longer matches and macOS asks the user for their login password —
+  /// on every single build. That is intolerable in a development loop and confusing in
+  /// a released one.
+  ///
+  /// The data-protection keychain has no per-binary ACL: access is decided by the
+  /// application's identity, so a rebuild does not invalidate anything and the user is
+  /// never asked again. It is the modern keychain and the one Apple recommends.
+  ///
+  /// It can refuse for an app whose signature carries no usable identity, which is why
+  /// every operation falls back to the file keychain rather than failing. A user who
+  /// already has a key stored the old way keeps working; a new key goes to the better
+  /// place.
+  private func baseQuery(_ key: SecretKey, dataProtection: Bool) -> [String: Any] {
+    var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: key.rawValue,
@@ -65,55 +82,78 @@ public struct KeychainSecretStore: SecretStoring {
       kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
       kSecAttrSynchronizable as String: false,
     ]
+    if dataProtection { query[kSecUseDataProtectionKeychain as String] = true }
+    return query
   }
 
+  /// Reads from the data-protection keychain first, then the file keychain.
+  ///
+  /// Both are checked so a key stored by an older build is still found. The order
+  /// matters: looking in the file keychain first would trigger the ACL prompt this
+  /// whole arrangement exists to avoid.
   public func read(_ key: SecretKey) throws -> String? {
-    var query = baseQuery(key)
-    query[kSecReturnData as String] = true
-    query[kSecMatchLimit as String] = kSecMatchLimitOne
+    for dataProtection in [true, false] {
+      var query = baseQuery(key, dataProtection: dataProtection)
+      query[kSecReturnData as String] = true
+      query[kSecMatchLimit as String] = kSecMatchLimitOne
 
-    var item: CFTypeRef?
-    let status = SecItemCopyMatching(query as CFDictionary, &item)
-    switch status {
-    case errSecSuccess:
-      guard let data = item as? Data, let string = String(data: data, encoding: .utf8) else {
-        throw SecretStoreError.malformedData
+      var item: CFTypeRef?
+      let status = SecItemCopyMatching(query as CFDictionary, &item)
+      switch status {
+      case errSecSuccess:
+        guard let data = item as? Data, let string = String(data: data, encoding: .utf8) else {
+          throw SecretStoreError.malformedData
+        }
+        // Note what was read, never what was read *out*.
+        return string.trimmingCharacters(in: .whitespacesAndNewlines)
+      case errSecItemNotFound:
+        continue
+      default:
+        // A refusal from one keychain is not a reason to give up on the other.
+        continue
       }
-      // Note what was read, never what was read *out*.
-      return string.trimmingCharacters(in: .whitespacesAndNewlines)
-    case errSecItemNotFound:
-      return nil
-    default:
-      throw SecretStoreError.keychain(status)
     }
+    return nil
   }
 
+  /// Writes to the data-protection keychain, falling back to the file keychain if
+  /// this build cannot use it.
   public func write(_ value: String, for key: SecretKey) throws {
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { try delete(key); return }
     let data = Data(trimmed.utf8)
 
-    // Update in place if it exists, so we never briefly have no key on disk.
-    let updateStatus = SecItemUpdate(
-      baseQuery(key) as CFDictionary,
-      [kSecValueData as String: data] as CFDictionary)
-    if updateStatus == errSecSuccess {
-      log.info("updated \(key.rawValue)")
-      return
-    }
-    guard updateStatus == errSecItemNotFound else { throw SecretStoreError.keychain(updateStatus) }
+    var lastStatus: OSStatus = errSecSuccess
+    for dataProtection in [true, false] {
+      // Update in place if it exists, so we never briefly have no key stored.
+      let updateStatus = SecItemUpdate(
+        baseQuery(key, dataProtection: dataProtection) as CFDictionary,
+        [kSecValueData as String: data] as CFDictionary)
+      if updateStatus == errSecSuccess {
+        log.info("updated \(key.rawValue)")
+        return
+      }
 
-    var insert = baseQuery(key)
-    insert[kSecValueData as String] = data
-    let addStatus = SecItemAdd(insert as CFDictionary, nil)
-    guard addStatus == errSecSuccess else { throw SecretStoreError.keychain(addStatus) }
-    log.info("stored \(key.rawValue)")
+      var insert = baseQuery(key, dataProtection: dataProtection)
+      insert[kSecValueData as String] = data
+      let addStatus = SecItemAdd(insert as CFDictionary, nil)
+      if addStatus == errSecSuccess {
+        log.info("stored \(key.rawValue)")
+        return
+      }
+      lastStatus = addStatus == errSecItemNotFound ? updateStatus : addStatus
+    }
+    throw SecretStoreError.keychain(lastStatus)
   }
 
+  /// Deletes from both keychains, so "remove my key" removes every copy of it
+  /// rather than the one this build happened to write.
   public func delete(_ key: SecretKey) throws {
-    let status = SecItemDelete(baseQuery(key) as CFDictionary)
-    guard status == errSecSuccess || status == errSecItemNotFound else {
-      throw SecretStoreError.keychain(status)
+    for dataProtection in [true, false] {
+      let status = SecItemDelete(baseQuery(key, dataProtection: dataProtection) as CFDictionary)
+      guard status == errSecSuccess || status == errSecItemNotFound else {
+        throw SecretStoreError.keychain(status)
+      }
     }
     log.info("deleted \(key.rawValue)")
   }
