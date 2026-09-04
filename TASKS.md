@@ -188,8 +188,17 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `bash scripts/check.sh`
 - [x] RANT-061 — CI workflow (build, unit tests, lint)
   - verify: workflow file present + `swift build` locally
-- [x] RANT-062 — Local STT provider (whisper.cpp; Intel-safe) behind provider protocol
-  - verify: `swift test --filter LocalSTTTests`
+- [x] RANT-062 — Local STT provider (Intel-safe) behind provider protocol
+  - verify: `bash scripts/local-speech-smoke.sh`
+  - notes: **Was falsely marked done.** `LocalWhisperProvider` existed and
+    `LocalSTTTests` passed, but `WhisperBackend` had no production conformer — the only
+    implementation in the repository was a test fake — so choosing the local engine
+    selected a provider that could not transcribe, and local-only mode could not
+    dictate at all. Closed by `AppleSpeechProvider`, which uses the recogniser already
+    on the Mac, pinned on device, and refuses rather than falling back to the network.
+    Verified with real speech on this machine, not against a fake:
+    `on-device transcript: The quick brown fox jumps over the lazy dog`.
+    whisper.cpp remains an open option behind `WhisperBackend` (RANT-085).
 - [x] RANT-063 — Privacy/diagnostics view + docs (PRIVACY, NETWORK_BEHAVIOR, THREAT_MODEL)
   - verify: `ls PRIVACY.md docs/NETWORK_BEHAVIOR.md docs/THREAT_MODEL.md`
 - [x] RANT-064 — App compatibility matrix + smoke test harness
@@ -202,3 +211,62 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: manual matrix in docs/ACCESSIBILITY.md
 - [x] RANT-068 — Performance instrumentation vs targets in docs/PERFORMANCE.md
   - verify: `swift test --filter PerformanceTests`
+
+---
+
+## Final Completeness Audit
+
+Re-audited against `docs/MASTER_PROMPT.md` rather than against this file. The matrix
+and the evidence for each item are in `docs/FINAL_AUDIT.md`.
+
+The pattern behind almost every gap: `RantCore` implemented the specification and the
+app shell reached only part of it. Eighteen fully-implemented, fully-tested engine entry
+points were referenced nowhere in `App/Rant`, so several screens described behaviour
+that had no path from the interface to the code performing it.
+
+- [x] RANT-070 — Recover the master prompt into the repository as the contract
+  - verify: `test -f docs/MASTER_PROMPT.md`
+- [x] RANT-071 — Requirement matrix with per-item evidence
+  - verify: `test -f docs/FINAL_AUDIT.md`
+- [x] RANT-072 — A local speech engine that actually transcribes
+  - acceptance: selecting local transcribes with no network and no key
+  - verify: `bash scripts/local-speech-smoke.sh`
+- [x] RANT-073 — Provider selection that changes the provider
+  - acceptance: the Engine picker lists every provider and the choice is honoured
+  - notes: `makeTranscriptionProvider()` was `switch { default: AssemblyAIProvider }`,
+    and the picker offered one option. Both now resolve through `ProviderRegistry`.
+  - verify: `swift test --filter AppleSpeechTests`
+- [x] RANT-074 — Notetaker records, transcribes and saves a meeting
+  - notes: `startMeeting()` requested a permission and returned. No capture, no
+    transcript, no row.
+  - verify: `swift test --filter MeetingTests`
+- [x] RANT-075 — Transforms end to end: hotkey, selection, diff, accept/reject/edit
+  - notes: the page listed prompts and described a diff that did not exist.
+  - verify: `swift test --filter TransformTests`
+- [x] RANT-076 — Styles reach the pipeline
+  - notes: `styleInstruction` was never set, so `StyleResolver` was dead code.
+  - verify: `swift test --filter StyleRoutingTests`
+- [x] RANT-077 — Modes change the pipeline; Modes reachable in the sidebar
+  - notes: `ModesView` existed in no sidebar group at all.
+  - verify: `swift test --filter ModeRoutingTests`
+- [x] RANT-078 — Audio retention actually deletes
+  - notes: the policy was stored and displayed; no sweep ever ran.
+  - verify: `swift test --filter RetentionTests`
+- [x] RANT-079 — Microphone selection, with enumeration and a live meter
+  - notes: `preferredDeviceID` was assigned and never read, and there was no UI.
+  - verify: `swift test --filter AudioDeviceTests`
+- [x] RANT-080 — Local MCP server starts, stops and is inspectable
+  - notes: `mcpEnabled` was a boolean nothing read.
+  - verify: `swift test --filter MCPTransportTests`
+- [x] RANT-081 — Calendar via EventKit
+  - notes: `CalendarProviding` had only a fixture conformer.
+  - verify: `swift build`
+- [x] RANT-082 — Settings sections the spec names: Notetaker, Integrations, Advanced
+  - verify: `bash scripts/ui-test.sh`
+- [x] RANT-083 — Correction learning wired and opt-in; voice profile displayed
+  - verify: `swift test --filter LearningTests`
+- [x] RANT-084 — Menu bar completed (Notetaker, History, Settings, navigation)
+  - verify: manual — every item exercised
+- [ ] RANT-085 — whisper.cpp behind `WhisperBackend`, for a specific chosen model
+  - notes: not required for a working local engine — `AppleSpeechProvider` covers that
+    — and deliberately not claimed as shipping. The seam and its tests remain.
