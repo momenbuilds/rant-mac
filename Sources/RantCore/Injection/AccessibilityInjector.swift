@@ -159,6 +159,24 @@ public actor AccessibilityInjector: TextInjector {
     up.post(tap: .cgAnnotatedSessionEventTap)
     return true
   }
+
+  /// Press Return, for a Mode that dictates into a chat box and sends.
+  ///
+  /// Same event-suppression as the paste: a synthesised Return must not come back
+  /// through Rant's own event tap and be read as the user pressing a key.
+  public nonisolated func pressReturn() async {
+    guard let source = CGEventSource(stateID: .combinedSessionState) else { return }
+    source.setLocalEventsFilterDuringSuppressionState(
+      [.permitLocalMouseEvents, .permitSystemDefinedEvents],
+      state: .eventSuppressionStateSuppressionInterval)
+
+    let vKey: CGKeyCode = 36  // Return
+    guard let down = CGEvent(keyboardEventSource: source, virtualKey: vKey, keyDown: true),
+      let up = CGEvent(keyboardEventSource: source, virtualKey: vKey, keyDown: false)
+    else { return }
+    down.post(tap: .cgAnnotatedSessionEventTap)
+    up.post(tap: .cgAnnotatedSessionEventTap)
+  }
 }
 
 /// The real `NSPasteboard`.

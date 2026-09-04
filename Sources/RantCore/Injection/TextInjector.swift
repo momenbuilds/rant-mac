@@ -57,6 +57,17 @@ public enum InjectionError: Error, Equatable, LocalizedError {
 /// Anything that can put text where the user was typing.
 public protocol TextInjector: Sendable {
   func inject(_ request: InjectionRequest) async throws -> InjectionOutcome
+
+  /// Press Return in the app that was just written into.
+  ///
+  /// For a Mode whose output is a chat box, where "dictate and send" is the whole
+  /// point. Defaulted to doing nothing so a test injector or a clipboard-only one does
+  /// not have to implement a keystroke it has no way to deliver.
+  func pressReturn() async
+}
+
+extension TextInjector {
+  public func pressReturn() async {}
 }
 
 /// The clipboard, behind a protocol so clipboard save/restore can be tested without

@@ -309,8 +309,10 @@ struct StyleEditor: View {
 
 /// Modes: the whole pipeline, not just the wording.
 struct ModesView: View {
+  @EnvironmentObject private var preferences: Preferences
   @State private var selection: String?
-  private var modes: [Mode] { Mode.builtIns }
+  @State private var newTrigger = ""
+  private var modes: [Mode] { preferences.modeResolver.modes }
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
@@ -350,19 +352,43 @@ struct ModesView: View {
               }
             }
 
-            SectionCard(title: "Switches on automatically for") {
-              if mode.configuration.appTriggers.isEmpty && mode.configuration.siteTriggers.isEmpty {
-                Text("Nothing — choose it yourself.").font(.callout).foregroundStyle(.secondary)
-              } else {
-                VStack(alignment: .leading, spacing: 4) {
-                  ForEach(mode.configuration.appTriggers, id: \.self) { trigger in
-                    Label(trigger, systemImage: "app").font(.caption)
-                  }
-                  ForEach(mode.configuration.siteTriggers, id: \.self) { trigger in
-                    Label(trigger, systemImage: "globe").font(.caption)
-                  }
+            SectionCard(
+              title: "Switches on automatically for",
+              subtitle: "A bundle identifier like com.apple.Terminal, or a host like github.com."
+            ) {
+              VStack(alignment: .leading, spacing: 6) {
+                if mode.configuration.appTriggers.isEmpty
+                  && mode.configuration.siteTriggers.isEmpty
+                {
+                  Text("Nothing yet — this mode is only used when it is your default.")
+                    .font(.callout).foregroundStyle(.secondary)
+                }
+                ForEach(mode.configuration.appTriggers, id: \.self) { trigger in
+                  triggerRow(trigger, symbol: "app") { remove(trigger, from: mode, site: false) }
+                }
+                ForEach(mode.configuration.siteTriggers, id: \.self) { trigger in
+                  triggerRow(trigger, symbol: "globe") { remove(trigger, from: mode, site: true) }
+                }
+                HStack {
+                  TextField("com.apple.Terminal or github.com", text: $newTrigger)
+                    .textFieldStyle(.roundedBorder).font(.system(size: 12))
+                  Button("Add") { add(to: mode) }
+                    .buttonStyle(.quiet)
+                    .disabled(newTrigger.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
               }
+            }
+
+            SectionCard(title: "Use this mode") {
+              Toggle(
+                "Make this my default mode",
+                isOn: Binding(
+                  get: { preferences.modeResolver.defaultModeName == mode.name },
+                  set: { on in
+                    var resolver = preferences.modeResolver
+                    resolver.defaultModeName = on ? mode.name : "Clean"
+                    preferences.modeResolver = resolver
+                  }))
             }
           }
           .padding(Theme.Spacing.large)
@@ -376,6 +402,61 @@ struct ModesView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(Theme.paper)
+  }
+
+  private func triggerRow(
+    _ trigger: String, symbol: String, remove: @escaping () -> Void
+  ) -> some View {
+    HStack {
+      Label(trigger, systemImage: symbol).font(.caption)
+      Spacer()
+      Button {
+        remove()
+      } label: {
+        Image(systemName: "minus.circle").foregroundStyle(Theme.inkFaint)
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Remove \(trigger)")
+    }
+  }
+
+  /// A trigger with a dot and no reverse-DNS shape is a host; anything else is a
+  /// bundle identifier. Guessing here rather than making the user pick a radio button
+  /// is safe because both lists are visible immediately afterwards.
+  private func add(to mode: Mode) {
+    let value = newTrigger.trimmingCharacters(in: .whitespaces).lowercased()
+    guard !value.isEmpty else { return }
+    update(mode) { configuration in
+      if value.contains(".") && !value.hasPrefix("com.") && !value.hasPrefix("org.")
+        && !value.hasPrefix("dev.") && !value.hasPrefix("io.") && !value.hasPrefix("net.")
+      {
+        if !configuration.siteTriggers.contains(value) {
+          configuration.siteTriggers.append(value)
+        }
+      } else if !configuration.appTriggers.contains(value) {
+        configuration.appTriggers.append(value)
+      }
+    }
+    newTrigger = ""
+  }
+
+  private func remove(_ trigger: String, from mode: Mode, site: Bool) {
+    update(mode) { configuration in
+      if site {
+        configuration.siteTriggers.removeAll { $0 == trigger }
+      } else {
+        configuration.appTriggers.removeAll { $0 == trigger }
+      }
+    }
+  }
+
+  private func update(_ mode: Mode, _ change: (inout Mode.Configuration) -> Void) {
+    var resolver = preferences.modeResolver
+    guard let index = resolver.modes.firstIndex(where: { $0.name == mode.name }) else {
+      return
+    }
+    change(&resolver.modes[index].configuration)
+    preferences.modeResolver = resolver
   }
 
   private func triggerSummary(_ mode: Mode) -> String {

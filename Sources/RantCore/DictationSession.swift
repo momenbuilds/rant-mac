@@ -65,6 +65,39 @@ public struct DictationSettings: Equatable, Sendable {
   /// While this was nil the Styles screen had no effect on anything.
   public var styleResolver: StyleResolver?
 
+  /// Chooses the whole pipeline shape from where the user is typing.
+  ///
+  /// A mode overrides the settings it names and leaves the rest alone, which is why it
+  /// is applied here rather than merged into preferences: "Terminal mode uses no
+  /// cleanup" should not permanently change the user's cleanup setting.
+  public var modeResolver: ModeResolver?
+
+  /// Applies `mode`'s configuration over these settings.
+  ///
+  /// Only the fields the mode actually specifies. A mode with no `styleName` must not
+  /// clear a style the resolver would otherwise have chosen — an override that also
+  /// silently unsets everything it does not mention is not an override.
+  func applying(_ mode: Mode) -> DictationSettings {
+    var copy = self
+    let configuration = mode.configuration
+    copy.cleanupLevel = configuration.cleanupLevel
+    copy.contextSettings = configuration.contextSettings
+    if let language = configuration.languageCode { copy.languageCode = language }
+    if let styleName = configuration.styleName,
+      let style = styleResolver?.style(named: styleName)
+    {
+      copy.styleInstruction = style.instructions
+    }
+    // The mode's own prompt is appended rather than replacing the style, so a mode can
+    // add an instruction without discarding the voice the user chose.
+    if let prompt = configuration.prompt, !prompt.isEmpty {
+      copy.styleInstruction = [copy.styleInstruction, prompt]
+        .compactMap { $0 }
+        .joined(separator: " ")
+    }
+    return copy
+  }
+
   public init(
     cleanupLevel: CleanupLevel = .medium,
     styleInstruction: String? = nil,
@@ -73,9 +106,11 @@ public struct DictationSettings: Equatable, Sendable {
     localOnly: Bool = false,
     contextSettings: ContextSettings = .default,
     retainAudio: Bool = false,
-    styleResolver: StyleResolver? = nil
+    styleResolver: StyleResolver? = nil,
+    modeResolver: ModeResolver? = nil
   ) {
     self.styleResolver = styleResolver
+    self.modeResolver = modeResolver
     self.cleanupLevel = cleanupLevel
     self.styleInstruction = styleInstruction
     self.languageCode = languageCode
@@ -119,6 +154,8 @@ public actor DictationSession {
 
   private var currentTask: Task<DictationOutcome?, Never>?
   private var capturedContext: TranscriptionContext = .empty
+  /// The mode this recording is running under, decided when it started.
+  private var activeMode: Mode?
   private var startedAt: ContinuousClock.Instant?
 
   /// Observers for the overlay.
@@ -180,7 +217,19 @@ public actor DictationSession {
     // Context capture and connection warm-up happen *after* audio is running, so
     // neither can delay the first sample. Both are best-effort.
     let captureSettings = settings.contextSettings
-    capturedContext = await context.capture(settings: captureSettings)
+    var captured = await context.capture(settings: captureSettings)
+
+    // Which mode applies is decided from the app and site, and a mode can carry its
+    // own context rules. Those rules have to govern what is *collected*, not merely
+    // what is used, so when they differ the context is captured again under them —
+    // otherwise "this mode reads nothing about what I am doing" would be a claim about
+    // a value that had already been gathered.
+    activeMode = settings.modeResolver?.resolve(context: captured)
+    if let mode = activeMode, mode.configuration.contextSettings != captureSettings {
+      captured = await context.capture(settings: mode.configuration.contextSettings)
+    }
+    capturedContext = captured
+
     if !settings.localOnly {
       await transcriber.warmUp()
     }
@@ -220,10 +269,19 @@ public actor DictationSession {
   // MARK: - Pipeline
 
   private func run(
-    buffer: AudioBuffer, context capturedContext: TranscriptionContext, settings: DictationSettings
+    buffer: AudioBuffer, context capturedContext: TranscriptionContext,
+    settings incoming: DictationSettings
   ) async -> DictationOutcome? {
     var latency = LatencyBreakdown()
     let began = ContinuousClock.now
+
+    // The mode chosen at the start of the recording, not re-resolved here. A mode that
+    // switched off context capture would otherwise leave an empty context that resolves
+    // to a *different* mode, and the dictation would run under rules the user never
+    // selected.
+    let mode = activeMode ?? incoming.modeResolver?.resolve(context: capturedContext)
+    let settings = mode.map { incoming.applying($0) } ?? incoming
+    if let mode { log.info("mode: \(mode.name)") }
 
     // A recording with nothing in it should not cost a network request or produce an
     // empty history row.
@@ -301,8 +359,16 @@ public actor DictationSession {
     let injection: InjectionOutcome
     do {
       injection = try await injector.inject(
-        InjectionRequest(text: finalText, context: capturedContext))
+        InjectionRequest(
+          text: finalText,
+          target: mode?.configuration.outputTarget ?? .cursor,
+          context: capturedContext))
       log.info("injection: \(String(describing: injection))")
+      // Auto-send is the mode's, and deliberately after a successful injection: a
+      // Return pressed when nothing was inserted sends whatever was already there.
+      if mode?.configuration.autoSend == true {
+        await injector.pressReturn()
+      }
     } catch {
       log.error("injection failed: \(error.localizedDescription)")
       // The text exists and the user earned it — surface the failure but keep the

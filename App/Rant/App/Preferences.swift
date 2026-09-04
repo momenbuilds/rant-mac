@@ -77,6 +77,7 @@ final class Preferences: ObservableObject {
     static let contextUseClipboard = "rant.context.clipboard"
     static let contextUseScreenOCR = "rant.context.ocr"
     static let excludedBundleIDs = "rant.context.excluded"
+    static let modeResolver = "rant.modes.resolver"
     static let mcpSettings = "rant.mcp.settings"
     static let learnFromCorrections = "rant.learning.enabled"
     static let styleResolver = "rant.styles.resolver"
@@ -148,7 +149,28 @@ final class Preferences: ObservableObject {
       localOnly: localOnly,
       contextSettings: contextSettings,
       retainAudio: retainAudio,
-      styleResolver: styleResolver)
+      styleResolver: styleResolver,
+      modeResolver: modeResolver)
+  }
+
+  /// Which mode applies where.
+  ///
+  /// Like the style resolver, this had no home: `ModeResolver` was implemented and
+  /// tested and nothing built one, so the Modes screen described a pipeline nothing
+  /// consulted.
+  var modeResolver: ModeResolver {
+    get {
+      guard let data = defaults.data(forKey: Key.modeResolver),
+        var stored = try? JSONDecoder().decode(ModeResolver.self, from: data)
+      else { return ModeResolver() }
+      stored.sessionOverride = nil
+      return stored
+    }
+    set {
+      guard let data = try? JSONEncoder().encode(newValue) else { return }
+      defaults.set(data, forKey: Key.modeResolver)
+      objectWillChange.send()
+    }
   }
 
   /// How a writing style is chosen, persisted as JSON.
