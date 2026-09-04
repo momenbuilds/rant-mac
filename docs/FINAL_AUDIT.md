@@ -32,6 +32,38 @@ The ones that mattered most:
 | **Live partials did not exist** | `AppModel.partialText` was published, never set, never displayed; the session had no streaming path. | Preview under the pill; refused under Local only. |
 | **Release shipped test hooks** | Four launch arguments, one of which erases every preference and one of which swaps the Keychain for an in-memory store. | `#if DEBUG`. Verified: zero occurrences in the Release binary. |
 
+### The one that was not an app-shell gap
+
+**`check.sh` — the definition of green — reported PASS while unit tests were failing.**
+
+`check_tests` grepped for `", with [1-9][0-9]* failures?"`. That matches
+`"Executed 800 tests, with 2 failures"`, and stops matching the moment anything is
+skipped, because the summary becomes `"with 2 tests skipped and 2 failures"` and the
+count no longer follows `with `. So from the first skipped test onwards, any run with
+both a skip and a failure went green.
+
+It was hiding two real failures on CI. Both were tests whose outcome depended on how
+loaded the machine was — `LocalSTTTests` recording download progress through an
+unawaited `Task`, and a streaming test whose 30 ms termination grace expired before a
+busy runner could push the final turn. Neither is a product defect; both had been red
+on CI with nobody being told.
+
+The check now consults the exit status of `swift test`, which it never did, keeps a
+summary scan as a second line of defence, and prints the failing assertions instead of
+swallowing them. Verified against the exact string that fooled it:
+
+```
+$ printf 'Executed 814 tests, with 2 tests skipped and 2 failures (0 unexpected)\n' > /tmp/p
+$ grep -cE ", with [1-9][0-9]* failures?" /tmp/p   # old guard
+0
+$ grep -cE "[1-9][0-9]* (unexpected )?failures?" /tmp/p   # new guard
+1
+```
+
+This is worth its own heading because every other finding in this document was found
+*by* reading the code, and this one determines whether anything else in it can be
+believed. A green light that goes green when tests fail is worse than no green light.
+
 Reproduce the shape of the original finding:
 
 ```
