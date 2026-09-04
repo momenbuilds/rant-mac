@@ -4,7 +4,8 @@ import SwiftUI
 /// The settings panes, as one list so the picker and the content can never disagree
 /// about what exists.
 enum SettingsPane: String, CaseIterable, Identifiable {
-  case general, speech, intelligence, privacy, diagnostics
+  case general, speech, intelligence, privacy, notetaker, integrations, advanced,
+    diagnostics
 
   var id: String { rawValue }
 
@@ -14,6 +15,9 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case .speech: "Speech"
     case .intelligence: "Intelligence"
     case .privacy: "Privacy"
+    case .notetaker: "Notetaker"
+    case .integrations: "Integrations"
+    case .advanced: "Advanced"
     case .diagnostics: "Diagnostics"
     }
   }
@@ -24,6 +28,9 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case .speech: "waveform"
     case .intelligence: "wand.and.stars"
     case .privacy: "hand.raised"
+    case .notetaker: "person.2.wave.2"
+    case .integrations: "puzzlepiece.extension"
+    case .advanced: "wrench.and.screwdriver"
     case .diagnostics: "stethoscope"
     }
   }
@@ -59,6 +66,9 @@ struct SettingsView: View {
         case .speech: SpeechSettings()
         case .intelligence: IntelligenceSettings()
         case .privacy: PrivacySettings()
+        case .notetaker: NotetakerSettings()
+        case .integrations: IntegrationsSettings()
+        case .advanced: AdvancedSettings()
         case .diagnostics: DiagnosticsSettings()
         }
       }
@@ -414,6 +424,212 @@ struct PrivacySettings: View {
       Button("Cancel", role: .cancel) {}
     } message: {
       Text("Transcripts, statistics and any retained audio, gone from this Mac. Your API key stays in the Keychain until you remove it there.")
+    }
+  }
+}
+
+/// Notetaker settings — capture, summaries, calendar, retention.
+struct NotetakerSettings: View {
+  @EnvironmentObject private var model: AppModel
+  @EnvironmentObject private var preferences: Preferences
+  @EnvironmentObject private var permissions: Permissions
+  @State private var calendarGranted = false
+
+  var body: some View {
+    Form {
+      Section("Capture") {
+        LabeledContent("System audio") {
+          HStack(spacing: Theme.Spacing.tight) {
+            Text(permissions.screenRecording.isGranted ? "Granted" : "Not granted")
+              .foregroundStyle(
+                permissions.screenRecording.isGranted ? Theme.moss : Theme.clay)
+            if !permissions.screenRecording.isGranted {
+              Button("Grant…") { permissions.requestScreenRecording() }
+                .buttonStyle(.quiet)
+            }
+          }
+        }
+        Text("Without it Rant records only your microphone, so a meeting has your half and not theirs. macOS puts system-audio capture behind Screen Recording; Rant asks for the smallest frame the API accepts and never reads one.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Summaries") {
+        LabeledContent(
+          "Summariser",
+          value: preferences.enhancementProvider == "none"
+            ? "Built in (no model)" : preferences.enhancementProvider)
+        Text(
+          preferences.localOnly
+            ? "Local only is on, so meeting transcripts are never sent to a model that leaves this Mac. Summaries come from the built-in structural extraction."
+            : "A remote enhancer sees the meeting transcript. Turn on Local only in Privacy to keep summarising entirely on this Mac."
+        )
+        .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Calendar") {
+        LabeledContent("Upcoming events") {
+          HStack(spacing: Theme.Spacing.tight) {
+            Text(calendarGranted ? "Granted" : "Not granted")
+              .foregroundStyle(calendarGranted ? Theme.moss : Theme.inkMuted)
+            if !calendarGranted {
+              Button("Grant…") {
+                Task {
+                  await model.requestCalendarAccess()
+                  calendarGranted = await model.hasCalendarAccess
+                }
+              }
+              .buttonStyle(.quiet)
+            }
+          }
+        }
+        if !model.upcomingEvents.isEmpty {
+          ForEach(model.upcomingEvents, id: \.id) { event in
+            LabeledContent(event.title) {
+              Text(event.startDate, format: .dateTime.hour().minute())
+                .foregroundStyle(.secondary)
+            }
+          }
+        }
+        Text("Used only to name a meeting and show its join link. Your calendar is never uploaded.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+    }
+    .formStyle(.grouped)
+    .task {
+      calendarGranted = await model.hasCalendarAccess
+      if calendarGranted { await model.refreshUpcomingEvents() }
+    }
+  }
+}
+
+/// Integrations — the local MCP server, and the shortcuts other tools can use.
+struct IntegrationsSettings: View {
+  @EnvironmentObject private var model: AppModel
+  @EnvironmentObject private var preferences: Preferences
+
+  var body: some View {
+    Form {
+      Section("Local MCP server") {
+        Toggle(
+          "Let local MCP clients read my Rant data",
+          isOn: Binding(
+            get: { preferences.mcpSettings.enabled },
+            set: { on in
+              var settings = preferences.mcpSettings
+              settings.enabled = on
+              preferences.mcpSettings = settings
+              model.applyMCPSettings()
+            }))
+          .accessibilityIdentifier("settings.mcpEnabled")
+
+        if preferences.mcpSettings.enabled {
+          LabeledContent("Address") {
+            Text("\(preferences.mcpSettings.host):\(model.mcpController?.boundPort ?? preferences.mcpSettings.port)")
+              .monospaced()
+          }
+          LabeledContent("Status") {
+            Text(model.mcpController?.isRunning == true ? "Listening" : "Not running")
+              .foregroundStyle(
+                model.mcpController?.isRunning == true ? Theme.moss : Theme.clay)
+          }
+          if let error = model.mcpController?.lastError {
+            Text(error).font(.caption).foregroundStyle(Theme.live)
+          }
+
+          // Empty is a working configuration: the server answers tools/list and
+          // refuses every tool. Exposure is opt-in per collection.
+          ForEach(MCPCollection.selectable, id: \.self) { collection in
+            Toggle(
+              collection.displayName,
+              isOn: Binding(
+                get: { preferences.mcpSettings.collections.contains(collection) },
+                set: { on in
+                  var settings = preferences.mcpSettings
+                  if on {
+                    settings.collections.insert(collection)
+                  } else {
+                    settings.collections.remove(collection)
+                  }
+                  preferences.mcpSettings = settings
+                  model.applyMCPSettings()
+                }))
+          }
+
+          Toggle(
+            "Allow tools that start and stop dictation",
+            isOn: Binding(
+              get: { preferences.mcpSettings.allowWrite },
+              set: { on in
+                var settings = preferences.mcpSettings
+                settings.allowWrite = on
+                preferences.mcpSettings = settings
+                model.applyMCPSettings()
+              }))
+        }
+
+        Text("Off by default. The server binds to loopback only — a non-loopback address is refused before a socket is created — and it never exposes your API keys. Every request is written to a local audit log.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Keyboard") {
+        LabeledContent("Transform selection", value: CarbonHotkey.Combination.optionShiftT.displayName)
+        LabeledContent("Dictate without Accessibility", value: model.fallbackShortcut ?? "—")
+      }
+    }
+    .formStyle(.grouped)
+  }
+}
+
+/// Advanced — developer mode, logs, and the reset switches.
+struct AdvancedSettings: View {
+  @EnvironmentObject private var model: AppModel
+  @EnvironmentObject private var preferences: Preferences
+  @State private var confirmingReset = false
+
+  var body: some View {
+    Form {
+      Section("Developer") {
+        Toggle("Developer mode", isOn: $preferences.developerMode)
+        Text("Keeps technical casing — userId, ContentView.swift, async throws — instead of prose-formatting them.")
+          .font(.caption).foregroundStyle(.secondary)
+
+        Toggle("Learn from my corrections", isOn: $preferences.learnFromCorrections)
+        Text("After Rant inserts text, it briefly watches the same field for edits and proposes a dictionary rule. Only the text Rant inserted and the part you changed are compared — never the rest of the document — and nothing is saved without you accepting it.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Logs") {
+        LabeledContent("Log file", value: RantLog.fileURL?.path ?? "Not writing to disk")
+        HStack {
+          Button("Show in Finder") {
+            guard let url = RantLog.fileURL else { return }
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+          }
+          .buttonStyle(.quiet)
+          .disabled(RantLog.fileURL == nil)
+          Spacer()
+        }
+        Text("Transcripts and context are never written to the log at any level. It records what happened, not what you said.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Reset") {
+        Button("Run onboarding again") { preferences.hasCompletedOnboarding = false }
+          .buttonStyle(.quiet)
+        Button("Reset every setting…", role: .destructive) { confirmingReset = true }
+          .buttonStyle(.quiet)
+        Text("Resetting settings does not delete your transcripts. Use Privacy → Clear local data for that.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+    }
+    .formStyle(.grouped)
+    .confirmationDialog(
+      "Reset every setting?", isPresented: $confirmingReset, titleVisibility: .visible
+    ) {
+      Button("Reset", role: .destructive) { preferences.resetAll() }
+      Button("Keep them", role: .cancel) {}
+    } message: {
+      Text("Your dictation key, engine choice, styles and privacy switches go back to their defaults. Your transcripts, dictionary and snippets are untouched.")
     }
   }
 }

@@ -54,6 +54,7 @@ final class Preferences: ObservableObject {
     self.ollamaModel = defaults.string(forKey: Key.ollamaModel) ?? "llama3.2"
     self.developerMode = defaults.bool(forKey: Key.developerMode)
     self.mcpEnabled = defaults.bool(forKey: Key.mcpEnabled)
+    self.learnFromCorrections = defaults.bool(forKey: Key.learnFromCorrections)
   }
 
   private enum Key {
@@ -76,6 +77,8 @@ final class Preferences: ObservableObject {
     static let contextUseClipboard = "rant.context.clipboard"
     static let contextUseScreenOCR = "rant.context.ocr"
     static let excludedBundleIDs = "rant.context.excluded"
+    static let mcpSettings = "rant.mcp.settings"
+    static let learnFromCorrections = "rant.learning.enabled"
     static let styleResolver = "rant.styles.resolver"
     static let customStyles = "rant.styles.custom"
     static let enhancementProvider = "rant.enhance.provider"
@@ -192,6 +195,75 @@ final class Preferences: ObservableObject {
   }
 
   var allStyles: [WritingStyle] { WritingStyle.builtIns + customStyles }
+
+  /// The local MCP server's configuration.
+  ///
+  /// `mcpEnabled` existed as a lone boolean that nothing read. The server needs rather
+  /// more than a boolean — which collections are exposed, whether write tools are
+  /// allowed, where it binds — and all of it has to persist, so it is stored whole.
+  var mcpSettings: MCPSettings {
+    get {
+      guard let data = defaults.data(forKey: Key.mcpSettings),
+        let stored = try? JSONDecoder().decode(MCPSettings.self, from: data)
+      else { return MCPSettings(enabled: mcpEnabled) }
+      return stored
+    }
+    set {
+      guard let data = try? JSONEncoder().encode(newValue) else { return }
+      defaults.set(data, forKey: Key.mcpSettings)
+      // Kept in step so the old key stays truthful for anything still reading it.
+      if mcpEnabled != newValue.enabled { mcpEnabled = newValue.enabled }
+      objectWillChange.send()
+    }
+  }
+
+  /// Opt-in learning from corrections. Off unless the user says otherwise — the
+  /// feature watches what you type after Rant inserts text, and that is not something
+  /// to switch on for somebody.
+  @Published var learnFromCorrections: Bool {
+    didSet { defaults.set(learnFromCorrections, forKey: Key.learnFromCorrections) }
+  }
+
+  /// Put every setting back to its default.
+  ///
+  /// Removes the `rant.` keys and reloads, rather than assigning defaults one at a
+  /// time — a list of assignments is a list somebody forgets to extend when they add a
+  /// setting, and a reset that silently misses one is worse than none.
+  ///
+  /// Deliberately settings only. Transcripts, dictionary and snippets live in the
+  /// database and are cleared from Privacy, where the warning can say what is being
+  /// destroyed.
+  func resetAll() {
+    for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("rant.") {
+      defaults.removeObject(forKey: key)
+    }
+    hasCompletedOnboarding = false
+    triggerKey = .rightCommand
+    activationMode = .hybrid
+    cleanupLevel = .medium
+    speechProvider = "assemblyai"
+    localOnly = false
+    preferLocalCleanup = false
+    retainAudio = false
+    audioRetentionDays = 0
+    microphoneUniqueID = nil
+    languageCode = nil
+    playSounds = true
+    overlayAlwaysVisible = false
+    launchAtLogin = false
+    contextEnabled = true
+    contextAllowCloud = true
+    contextUseClipboard = false
+    contextUseScreenOCR = false
+    excludedBundleIDs = ContextSettings.defaultExclusions
+    enhancementProvider = "none"
+    ollamaEndpoint = "http://localhost:11434"
+    ollamaModel = "llama3.2"
+    developerMode = false
+    mcpEnabled = false
+    learnFromCorrections = false
+    objectWillChange.send()
+  }
 
   var hotkeyConfiguration: HotkeyEngine.Configuration {
     HotkeyEngine.Configuration(trigger: triggerKey, mode: activationMode)

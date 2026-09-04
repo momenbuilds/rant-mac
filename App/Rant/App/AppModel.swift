@@ -25,6 +25,12 @@ final class AppModel: ObservableObject {
   @Published private(set) var meetingController: MeetingController?
   /// Owns the transform panel and its hotkey.
   @Published private(set) var transformController: TransformController?
+  /// Owns the local MCP server. Built only once the database is open.
+  @Published private(set) var mcpController: MCPController?
+  /// Upcoming calendar events, for the notetaker. Empty until permission is granted.
+  @Published private(set) var upcomingEvents: [CalendarEvent] = []
+
+  private let calendar = EventKitCalendar()
   @Published private(set) var partialText: String = ""
   @Published private(set) var recentTranscripts: [Transcript] = []
   @Published private(set) var lastError: String?
@@ -89,6 +95,9 @@ final class AppModel: ObservableObject {
     // Before anything else can add to it: audio that outlived the policy while Rant
     // was not running should be gone by the time the window appears.
     sweepRetainedAudio()
+    // Starts nothing unless the user has switched it on; `apply` stops as readily as
+    // it starts.
+    applyMCPSettings()
 
     // The event tap cannot be installed without Accessibility, and Accessibility is
     // granted in another process with no notification. Watching for it means the
@@ -617,6 +626,38 @@ final class AppModel: ObservableObject {
   /// UI says so rather than failing — a one-sided transcript is still worth having.
   /// Whether a meeting is being recorded right now.
   var isMeetingRunning: Bool { meetingController?.isRunning ?? false }
+
+  // MARK: - MCP
+
+  /// Bring the local MCP server into line with the settings.
+  ///
+  /// Called at launch and from the Integrations pane. Before this the `mcpEnabled`
+  /// preference was a toggle nothing read — the server was implemented, tested and
+  /// never started.
+  func applyMCPSettings() {
+    guard let database else { return }
+    if mcpController == nil {
+      mcpController = MCPController(
+        database: database, settings: preferences.mcpSettings)
+    }
+    mcpController?.apply(preferences.mcpSettings)
+  }
+
+  // MARK: - Calendar
+
+  var hasCalendarAccess: Bool {
+    get async { await calendar.hasAccess }
+  }
+
+  func requestCalendarAccess() async {
+    _ = await calendar.requestAccess()
+    await refreshUpcomingEvents()
+  }
+
+  /// The next hour of events, used to name a meeting and offer its join link.
+  func refreshUpcomingEvents() async {
+    upcomingEvents = await calendar.upcomingEvents()
+  }
 
   /// Builds the notetaker's controller once the database is open.
   ///
