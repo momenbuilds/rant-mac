@@ -180,7 +180,9 @@ struct GeneralSettings: View {
 
       Section("Interface") {
         Toggle("Keep the recorder visible when idle", isOn: $preferences.overlayAlwaysVisible)
+          .accessibilityIdentifier("settings.overlayAlwaysVisible")
         Toggle("Play a sound when recording starts and stops", isOn: $preferences.playSounds)
+          .accessibilityIdentifier("settings.playSounds")
       }
     }
     .formStyle(.grouped)

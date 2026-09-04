@@ -9,6 +9,7 @@ struct HistoryView: View {
   @EnvironmentObject private var model: AppModel
   @State private var query = ""
   @State private var confirmingDeleteAll = false
+  @State private var semanticHits: [SemanticHit] = []
 
   private var results: [Transcript] {
     query.trimmingCharacters(in: .whitespaces).isEmpty
@@ -55,8 +56,15 @@ struct HistoryView: View {
       } else {
         TranscriptList(transcripts: results)
       }
+
+      relatedByMeaning
     }
     .page()
+    // Only for a query with some substance: three letters match a great deal a little.
+    .task(id: query) {
+      let trimmed = query.trimmingCharacters(in: .whitespaces)
+      semanticHits = trimmed.count >= 4 ? await model.semanticSearch(trimmed) : []
+    }
     .confirmationDialog(
       "Delete every transcript?", isPresented: $confirmingDeleteAll, titleVisibility: .visible
     ) {
@@ -64,6 +72,44 @@ struct HistoryView: View {
       Button("Keep them", role: .cancel) {}
     } message: {
       Text("This removes all \(model.recentTranscripts.count) transcripts and the statistics derived from them, from this Mac, permanently. Nothing is kept anywhere else.")
+    }
+  }
+
+  /// Dictations that are about the query without containing its words.
+  ///
+  /// Kept as a separate, clearly-labelled list. Full-text search either matched or it
+  /// did not; folding a similarity score into the same list makes both results harder
+  /// to trust, and "why is this here" is the question that kills a search feature.
+  @ViewBuilder private var relatedByMeaning: some View {
+    let hits = semanticHits.filter { hit in !results.contains { $0.id == hit.rowID } }
+    if !hits.isEmpty {
+      Section2(
+        "Related by meaning",
+        subtitle: "Worked out on this Mac, from a model that ships with macOS."
+      ) {
+        Card(padding: 0) {
+          VStack(spacing: 0) {
+            ForEach(Array(hits.enumerated()), id: \.element.rowID) { index, hit in
+              HStack(alignment: .top, spacing: Theme.Spacing.small) {
+                Text(hit.text)
+                  .font(.system(size: 13))
+                  .foregroundStyle(Theme.ink)
+                  .lineLimit(2)
+                  .textSelection(.enabled)
+                Spacer(minLength: Theme.Spacing.small)
+                Text("\(Int(hit.similarity * 100))%")
+                  .font(.system(size: 11).monospacedDigit())
+                  .foregroundStyle(Theme.inkFaint)
+              }
+              .padding(.horizontal, Theme.Spacing.medium)
+              .padding(.vertical, Theme.Spacing.small)
+              if index < hits.count - 1 {
+                Divider().overlay(Theme.hairline).padding(.leading, Theme.Spacing.medium)
+              }
+            }
+          }
+        }
+      }
     }
   }
 

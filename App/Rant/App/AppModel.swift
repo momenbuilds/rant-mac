@@ -35,6 +35,8 @@ final class AppModel: ObservableObject {
   @Published private(set) var learning: LearningObserver?
   /// The registered capabilities a voice can cause, and the way to run one.
   @Published private(set) var actions: ActionsController?
+  /// Local meaning-based recall, built lazily and only when asked for.
+  @Published private(set) var semantic: SemanticIndex?
 
   private let calendar = EventKitCalendar()
   @Published private(set) var partialText: String = ""
@@ -868,6 +870,36 @@ final class AppModel: ObservableObject {
   func search(_ query: String) -> [TranscriptSearchResult] {
     guard let store, !query.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
     return (try? store.search(query, limit: 100)) ?? []
+  }
+
+  /// Dictations that are *about* the query without containing its words.
+  ///
+  /// Deliberately a second list rather than blended into the exact results: full-text
+  /// search either matched or it did not, and mixing a similarity score into that
+  /// makes both harder to trust. `SemanticIndex` was implemented and tested and had no
+  /// caller.
+  ///
+  /// Local by construction — `NLEmbedding` ships with macOS and does no networking —
+  /// so recall can never become a quiet reason for transcripts to leave the machine.
+  func semanticSearch(_ query: String) async -> [SemanticHit] {
+    guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+    guard let index = makeSemanticIndexIfNeeded() else { return [] }
+    return (try? await index.search(query, kinds: [.transcript], limit: 8)) ?? []
+  }
+
+  private func makeSemanticIndexIfNeeded() -> SemanticIndex? {
+    if let semantic { return semantic }
+    guard let database else { return nil }
+    let embedding = AppleTextEmbedding()
+    // No embedding model for this language means no index. Saying so beats building an
+    // index that silently covers a fraction of the history.
+    guard embedding.isAvailable else { return nil }
+    let index = SemanticIndex(database: database, embedder: embedding)
+    semantic = index
+    // Indexing is incremental and bounded, so the first search pays for a batch rather
+    // than for the whole history.
+    Task { _ = try? await index.indexPending() }
+    return index
   }
 
   func delete(_ transcript: Transcript) {

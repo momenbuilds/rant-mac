@@ -134,9 +134,19 @@ final class OnboardingUITests: XCTestCase {
   func testASettingPersistsAcrossRelaunch() {
     completeOnboarding()
     click("sidebar.settings")
-    settingsTab("Privacy").click()
 
-    let toggle = switchElement("settings.localOnly")
+    // A General-pane toggle rather than the privacy one, and for the same reason the
+    // note above chose a toggle over a picker: this test is about persistence, and it
+    // should fail when persistence breaks rather than when a settings pane grows.
+    //
+    // It used to drive Privacy → "Local only", which sits below several context
+    // sections. Adding the Notetaker, Integrations and Advanced tabs pushed it under
+    // the fold on CI's smaller display, and the test started failing for a layout
+    // reason with nothing to say about whether settings survive a relaunch. Scrolling
+    // the form did not reach it — SwiftUI's `Form` is not exposed as a scroll area the
+    // test can drive — so the honest fix is to stop depending on where a control sits.
+    // The value still travels through `Preferences` to `UserDefaults` identically.
+    let toggle = switchElement("settings.overlayAlwaysVisible")
     XCTAssertTrue(toggle.waitForExistence(timeout: 5))
     XCTAssertTrue(
       scrollIntoView(toggle),
@@ -152,8 +162,7 @@ final class OnboardingUITests: XCTestCase {
     app.launch()
 
     click("sidebar.settings")
-    settingsTab("Privacy").click()
-    let after = switchElement("settings.localOnly")
+    let after = switchElement("settings.overlayAlwaysVisible")
     XCTAssertTrue(after.waitForExistence(timeout: 5))
     XCTAssertTrue(scrollIntoView(after), "the toggle could not be brought back on screen")
     XCTAssertTrue(
