@@ -164,14 +164,32 @@ struct SpeechSettings: View {
 
   var body: some View {
     Form {
+      // Built from the same registry the dictation session resolves against, so the
+      // list cannot drift from what actually runs. It previously offered exactly one
+      // engine while the code ignored the selection entirely.
       Section("Speech engine") {
         Picker("Engine", selection: $preferences.speechProvider) {
-          Text("AssemblyAI — your own key").tag("assemblyai")
+          ForEach(model.speechProviderRegistry().descriptors()) { descriptor in
+            Text(descriptor.displayName).tag(descriptor.identifier)
+          }
         }
-        HStack {
-          PrivacyBadge(level: preferences.localOnly ? .onDevice : .network)
-          Spacer()
+        ForEach(model.speechProviderRegistry().descriptors()) { descriptor in
+          if descriptor.identifier == preferences.speechProvider {
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.tight) {
+              PrivacyBadge(level: descriptor.sendsAudioOffDevice ? .network : .onDevice)
+              Text(descriptor.privacyLabel)
+                .font(.caption).foregroundStyle(.secondary)
+              Spacer()
+            }
+            // Says why an engine cannot be used, instead of letting the user find out
+            // at the first dictation.
+            if let explanation = descriptor.status.explanation {
+              Text(explanation).font(.caption).foregroundStyle(Theme.live)
+            }
+          }
         }
+        Text("The on-device engine uses the speech model already on your Mac. It needs no key and no download, and Rant refuses to run it over the network — if your Mac cannot recognise your language offline, you get an error rather than an upload.")
+          .font(.caption).foregroundStyle(.secondary)
       }
 
       Section("AssemblyAI key") {

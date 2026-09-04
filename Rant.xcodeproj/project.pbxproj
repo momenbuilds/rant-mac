@@ -62,12 +62,12 @@
 		A6354DBAB43B57FC9FDEDC11 /* Rant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rant.entitlements; sourceTree = "<group>"; };
 		A68446C6A9C9C91BA638C19D /* OnboardingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingUITests.swift; sourceTree = "<group>"; };
 		A9DC724C5939BF3ED0FDBAC9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		B1D3C1EF2EB65EE5D35FE21D /* final-audit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "final-audit"; path = .; sourceTree = SOURCE_ROOT; };
 		BCB5F2A65986604A1C209840 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
 		BD389C3FFFC4CF6441449AAC /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
 		C0A66A9791CE59F1F8E41115 /* Rant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rant.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF41DDD4B08F7F7322244223 /* TransformsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformsView.swift; sourceTree = "<group>"; };
 		D2FC28547A789BB5867734DB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		D86DA3ECF09A2156921FBF81 /* rant-mac */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "rant-mac"; path = .; sourceTree = SOURCE_ROOT; };
 		DD52C6823BAA8234F22CCF13 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		DEE89F48313D3963A85B3C19 /* PageTourTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageTourTests.swift; sourceTree = "<group>"; };
 		E33BE18405DF3FB5FBBD4F8A /* Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Permissions.swift; sourceTree = "<group>"; };
@@ -117,7 +117,7 @@
 		166AD33219FE5EC475B6834E /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				D86DA3ECF09A2156921FBF81 /* rant-mac */,
+				B1D3C1EF2EB65EE5D35FE21D /* final-audit */,
 			);
 			name = Packages;
 			sourceTree = "<group>";

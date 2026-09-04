@@ -198,3 +198,36 @@ public struct ProviderRegistry: Sendable {
     throw TranscriptionError.modelUnavailable("speech provider")
   }
 }
+
+/// Stands in for a provider that could not be resolved.
+///
+/// `ProviderRegistry.resolve` throws rather than substituting a different provider,
+/// which is the right behaviour and awkward for a caller that has to hand *something*
+/// to the dictation session at construction time. Wrapping the reason keeps the
+/// registry's promise: the user still gets the specific error — no key, local-only,
+/// model missing — at the moment they try to dictate, instead of it being swallowed
+/// when the session was built and resurfacing later as a generic failure.
+public struct UnavailableProvider: TranscriptionProvider {
+  public let identifier: String
+  public let displayName: String
+  /// Nothing is sent, because nothing runs.
+  public let sendsAudioOffDevice = false
+  private let reason: any Error
+
+  public init(
+    identifier: String = "unavailable", displayName: String = "No speech provider",
+    reason: any Error
+  ) {
+    self.identifier = identifier
+    self.displayName = displayName
+    self.reason = reason
+  }
+
+  public func transcribe(
+    _ audio: AudioBuffer, context: TranscriptionContext?, options: TranscriptionOptions
+  ) async throws -> TranscriptionResult {
+    throw reason
+  }
+
+  public func checkReachability() async throws { throw reason }
+}

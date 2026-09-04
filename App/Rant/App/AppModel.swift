@@ -300,13 +300,36 @@ final class AppModel: ObservableObject {
     engineReady = true
   }
 
+  /// Every speech provider the app can build, in the order Settings lists them.
+  ///
+  /// One list, used for the picker, for the status rows and for choosing the provider
+  /// a dictation actually runs on. When those were three separate pieces of knowledge
+  /// the picker offered a choice that `makeTranscriptionProvider` ignored — it returned
+  /// AssemblyAI whatever was selected — and Settings showed a control that changed
+  /// nothing.
+  func speechProviderRegistry() -> ProviderRegistry {
+    let secrets = self.secrets
+    return ProviderRegistry(
+      entries: [
+        .cloud(
+          AssemblyAIProvider(secrets: secrets),
+          hasKey: { ((try? secrets.read(.assemblyAI)) ?? nil)?.isEmpty == false }),
+        .init(AppleSpeechProvider(recogniser: SystemOnDeviceRecogniser())) {
+          SystemOnDeviceRecogniser.currentStatus()
+        },
+      ],
+      localOnly: preferences.localOnly)
+  }
+
   private func makeTranscriptionProvider() -> any TranscriptionProvider {
-    // Only one cloud provider exists today. The switch is here rather than inline so
-    // adding the local provider is a one-line change in a place that already reads
-    // like a list of choices.
-    switch preferences.speechProvider {
-    default:
-      return AssemblyAIProvider(secrets: secrets)
+    do {
+      return try speechProviderRegistry().resolve(preferred: preferences.speechProvider)
+    } catch {
+      // Deliberately not a substitute. The registry refuses for a specific reason —
+      // no key, local-only, no on-device model — and carrying that reason to the next
+      // dictation tells the user what to fix. Silently dictating through a different
+      // engine than the one they chose would be worse than failing.
+      return UnavailableProvider(reason: error)
     }
   }
 
@@ -626,9 +649,14 @@ final class AppModel: ObservableObject {
     buildSession()
   }
 
+  /// Tests the provider that is actually selected, not the cloud one.
+  ///
+  /// For the on-device engine "connection" means permission plus on-device asset
+  /// availability, which is exactly what its `checkReachability` answers — so the same
+  /// button gives a real answer for both engines instead of only for AssemblyAI.
   func testConnection() async -> Result<Void, Error> {
     do {
-      try await AssemblyAIProvider(secrets: secrets).checkReachability()
+      try await makeTranscriptionProvider().checkReachability()
       return .success(())
     } catch {
       return .failure(error)
