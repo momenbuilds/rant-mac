@@ -288,6 +288,17 @@ public enum Migrations {
           client        TEXT
         );
         """),
+
+    Step(
+      version: 8, name: "transcript tags",
+      sql: """
+        -- Per-dictation tags, which the specification asks for alongside favourites
+        -- and which had no column. Comma-separated in one column rather than a join
+        -- table: this is a personal label on a personal record, always read with the
+        -- row it belongs to and never queried across, so a second table would cost a
+        -- join on every history page to buy nothing.
+        ALTER TABLE transcripts ADD COLUMN tags TEXT;
+        """),
   ]
 
   public static var latestVersion: Int { all.map(\.version).max() ?? 0 }

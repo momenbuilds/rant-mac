@@ -12,8 +12,13 @@ public struct SQLiteTranscriptStore: TranscriptStore, Sendable {
   private static let columns = """
     id, created_at, raw_text, final_text, provider, language, cleanup_level, mode, style,
     app_bundle_id, app_name, browser_host, category, duration_ms, word_count,
-    words_per_minute, enhanced, audio_path, content_hash, source, source_id, favourite
+    words_per_minute, enhanced, audio_path, content_hash, source, source_id, favourite,
+    tags
     """
+
+  /// How many columns `columns` names, so anything selected after them can find its
+  /// own index instead of trusting a number written by hand.
+  static let columnCount = Int32(columns.split(separator: ",").count)
 
   private func decode(_ row: Row) -> Transcript {
     Transcript(
@@ -41,7 +46,8 @@ public struct SQLiteTranscriptStore: TranscriptStore, Sendable {
       contentHash: row.string(18),
       source: row.string(19),
       sourceID: row.stringOrNil(20),
-      favourite: row.bool(21))
+      favourite: row.bool(21),
+      tags: Self.decodeTags(row.stringOrNil(22)))
   }
 
   /// Insert, or quietly return the existing row when the content hash matches.
@@ -67,8 +73,9 @@ public struct SQLiteTranscriptStore: TranscriptStore, Sendable {
         INSERT OR IGNORE INTO transcripts
           (created_at, raw_text, final_text, provider, language, cleanup_level, mode, style,
            app_bundle_id, app_name, browser_host, category, duration_ms, word_count,
-           words_per_minute, enhanced, audio_path, content_hash, source, source_id, favourite)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           words_per_minute, enhanced, audio_path, content_hash, source, source_id, favourite,
+           tags)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """,
         [
           SQLValue(transcript.createdAt), .text(transcript.rawText), .text(transcript.finalText),
@@ -80,7 +87,7 @@ public struct SQLiteTranscriptStore: TranscriptStore, Sendable {
           .int(transcript.wordCount), SQLValue(transcript.wordsPerMinute),
           SQLValue(transcript.enhanced), SQLValue(transcript.audioPath),
           .text(transcript.contentHash), .text(transcript.source), SQLValue(transcript.sourceID),
-          SQLValue(transcript.favourite),
+          SQLValue(transcript.favourite), SQLValue(Self.encodeTags(transcript.tags)),
         ])
 
       let stored = try database.query(
@@ -151,7 +158,11 @@ public struct SQLiteTranscriptStore: TranscriptStore, Sendable {
       """,
       [.text(expression), .int(limit)]
     ) { row in
-      TranscriptSearchResult(transcript: decode(row), snippet: row.string(22))
+      // Derived, not hardcoded. The snippet is selected after the transcript's own
+      // columns, so its index is however many of those there are — adding `tags`
+      // moved it from 22 to 23 and broke the snippet with a passing decode, which is
+      // the sort of failure a literal here will cause again.
+      TranscriptSearchResult(transcript: decode(row), snippet: row.string(Self.columnCount))
     }
   }
 
@@ -195,6 +206,33 @@ public struct SQLiteTranscriptStore: TranscriptStore, Sendable {
   public func setFavourite(id: Int64, _ value: Bool) throws {
     try database.run(
       "UPDATE transcripts SET favourite = ? WHERE id = ?", [SQLValue(value), .int(Int(id))])
+  }
+
+  /// Replace a dictation's tags.
+  ///
+  /// Stored comma-separated, so the encoding has to split on a comma the user typed
+  /// rather than silently keeping one label that would come back as two. Blanks are
+  /// dropped and the order they were written in is kept.
+  public func setTags(id: Int64, _ tags: [String]) throws {
+    try database.run(
+      "UPDATE transcripts SET tags = ? WHERE id = ?",
+      [SQLValue(Self.encodeTags(tags)), .int(Int(id))])
+  }
+
+  static func encodeTags(_ tags: [String]) -> String? {
+    let cleaned =
+      tags
+      .flatMap { $0.split(separator: ",") }
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .filter { !$0.isEmpty }
+    return cleaned.isEmpty ? nil : cleaned.joined(separator: ",")
+  }
+
+  static func decodeTags(_ stored: String?) -> [String] {
+    guard let stored, !stored.isEmpty else { return [] }
+    return stored.split(separator: ",")
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .filter { !$0.isEmpty }
   }
 
   public func update(id: Int64, finalText: String) throws {

@@ -318,6 +318,10 @@ struct TranscriptRow: View {
   @State private var showingRaw = false
   @State private var hovering = false
   @State private var copied = false
+  @State private var editing = false
+  @State private var draft = ""
+  @State private var editingTags = false
+  @State private var tagDraft = ""
 
   var body: some View {
     HStack(alignment: .top, spacing: Theme.Spacing.small) {
@@ -328,11 +332,49 @@ struct TranscriptRow: View {
         .padding(.top, 2)
 
       VStack(alignment: .leading, spacing: 5) {
-        Text(showingRaw ? transcript.rawText : transcript.finalText)
-          .font(.system(size: 13.5))
-          .foregroundStyle(Theme.ink)
-          .textSelection(.enabled)
-          .fixedSize(horizontal: false, vertical: true)
+        if editing {
+          // Only the cleaned text is editable. The raw transcript is the record of
+          // what was actually heard, and overwriting it would turn history into a
+          // record of what you meant instead.
+          TextEditor(text: $draft)
+            .font(.system(size: 13.5))
+            .frame(minHeight: 54)
+            .overlay(
+              RoundedRectangle(cornerRadius: Theme.Radius.control)
+                .strokeBorder(Theme.hairline, lineWidth: 1))
+          HStack(spacing: 6) {
+            Button("Save") {
+              model.updateText(draft, on: transcript)
+              editing = false
+            }
+            .buttonStyle(.quiet)
+            Button("Cancel") { editing = false }.buttonStyle(.plain)
+              .foregroundStyle(Theme.inkFaint)
+          }
+          .font(.system(size: 11.5))
+        } else {
+          Text(showingRaw ? transcript.rawText : transcript.finalText)
+            .font(.system(size: 13.5))
+            .foregroundStyle(Theme.ink)
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+
+        if editingTags {
+          HStack(spacing: 6) {
+            TextField("tags, comma separated", text: $tagDraft)
+              .textFieldStyle(.roundedBorder)
+              .font(.system(size: 11.5))
+              .onSubmit { commitTags() }
+            Button("Save") { commitTags() }.buttonStyle(.quiet)
+          }
+        } else if !transcript.tags.isEmpty {
+          HStack(spacing: 4) {
+            ForEach(transcript.tags, id: \.self) { tag in
+              Chip(text: tag)
+            }
+          }
+        }
 
         HStack(spacing: 6) {
           if showingRaw {
@@ -353,6 +395,17 @@ struct TranscriptRow: View {
       Spacer(minLength: Theme.Spacing.small)
 
       HStack(spacing: 2) {
+        // The star stays visible when set: a favourite you can only see by hovering
+        // is not much of a marker.
+        if transcript.favourite || hovering {
+          action(
+            transcript.favourite ? "star.fill" : "star",
+            transcript.favourite ? "Remove from favourites" : "Add to favourites",
+            tint: transcript.favourite ? Theme.clay : Theme.inkMuted
+          ) {
+            model.toggleFavourite(transcript)
+          }
+        }
         if hovering || copied {
           action(copied ? "checkmark" : "doc.on.doc", "Copy") {
             model.copy(showingRaw ? transcript.rawText : transcript.finalText)
@@ -367,10 +420,19 @@ struct TranscriptRow: View {
           ) {
             showingRaw.toggle()
           }
+          action("pencil", "Edit this text") {
+            draft = transcript.finalText
+            showingRaw = false
+            editing = true
+          }
+          action("tag", "Tag this dictation") {
+            tagDraft = transcript.tags.joined(separator: ", ")
+            editingTags = true
+          }
           action("trash", "Delete") { model.delete(transcript) }
         }
       }
-      .frame(width: 84, alignment: .trailing)
+      .frame(width: 132, alignment: .trailing)
       .animation(Theme.gentle, value: hovering)
     }
     .padding(.horizontal, Theme.Spacing.medium)
@@ -379,13 +441,23 @@ struct TranscriptRow: View {
     .onHover { hovering = $0 }
   }
 
-  private func action(_ icon: String, _ label: String, _ perform: @escaping () -> Void)
-    -> some View
-  {
+  private func commitTags() {
+    model.setTags(
+      tagDraft.split(separator: ",").map {
+        $0.trimmingCharacters(in: .whitespacesAndNewlines)
+      },
+      on: transcript)
+    editingTags = false
+  }
+
+  private func action(
+    _ icon: String, _ label: String, tint: Color = Theme.inkMuted,
+    _ perform: @escaping () -> Void
+  ) -> some View {
     Button(action: perform) {
       Image(systemName: icon)
         .font(.system(size: 11))
-        .foregroundStyle(Theme.inkMuted)
+        .foregroundStyle(tint)
         .frame(width: 24, height: 22)
         .contentShape(Rectangle())
     }

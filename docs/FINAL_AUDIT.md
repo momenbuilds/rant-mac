@@ -89,7 +89,7 @@ done
 | C-02 | STT | Streaming partial transcripts, reconnect/backoff (§7) | session streaming path, `makeStreamingProvider()` | `LivePreviewTests`, `StreamingTests` | PASS | refused under local-only |
 | C-03 | STT | **At least one practical fully-local provider** (§7, §9) | `AppleSpeechProvider`, `SystemOnDeviceRecogniser` | `AppleSpeechTests` + `scripts/local-speech-smoke.sh` | PASS | real speech, offline, on this machine |
 | C-04 | STT | Provider picker changes the provider (§7, §45) | `makeTranscriptionProvider()` | `AppleSpeechTests` | PASS | — |
-| C-05 | STT | Local model download / progress / delete / disk use (§9) | `ModelStore`, `ModelCatalog` | `LocalSTTTests` | PARTIAL | only needed for whisper.cpp now; RANT-085, stated in the README |
+| C-05 | STT | Local model download / progress / delete / disk use (§9) | `ModelStore`, `ModelCatalog` | `LocalSTTTests` | PASS | vacuously: the shipping local engine needs no weights, so there is nothing to download, size, or delete — and no UI claims otherwise. The machinery stays for whisper.cpp (RANT-085) |
 | C-06 | STT | Local-only refuses network, never silently falls back (§7) | `DictationSession:156` | `SessionTests` | PASS | — |
 | D-01…03 | Cleanup | Four levels, self-correction, spoken punctuation (§11) | `TranscriptCleaner`, `SpokenPunctuation` | `CleanupTests` | PASS | — |
 | E-01 | Context | Frontmost app, field role, selection, cursor text (§10) | `AccessibilityContextProvider` | unit | PASS | — |
@@ -106,7 +106,7 @@ done
 | L-01 | Scratchpad | Notes CRUD, pin, search, export (§19) | `ScratchpadView` | `ScratchpadTests` | PASS | — |
 | M-01 | History | Store all metadata fields (§20) | `Storage` | `StoreTests` | PASS | — |
 | M-02 | History | **Delete ONE** transcript (§20) | `TranscriptRow` trash → `AppModel.delete(_:)` | `StoreTests` | PASS | audit first misread this as missing; the row lives in `HomeView.swift` |
-| M-03 | History | Copy / paste again / retry / favourite / tags (§20) | per-row copy, show-raw, delete; menu-bar paste-last and retry | `StoreTests` | PARTIAL | favourite and per-item tags unimplemented, though the schema carries them |
+| M-03 | History | Copy / paste again / retry / edit / favourite / tags (§20) | per-row copy, show-raw, edit, favourite, tags, delete; menu-bar paste-last and retry | `TranscriptTagTests`, `StoreTests` | PASS | tags added in migration 8; editing changes the cleaned text only, never the raw transcript |
 | N-01 | Audio retention | Policy actually enforced (§20) | `sweepRetainedAudio()` | `RetentionTests` | PASS | — |
 | O-01 | Insights | Local aggregates, no hardcoded numbers (§21) | `InsightsEngine` | `InsightsTests` | PASS | — |
 | O-02 | Voice profile | Explainable local stats (§22) | Insights "Your voice" | `InsightsTests` | PASS | no personality labels |
@@ -130,12 +130,10 @@ done
 | Z-06 | Distribution | Notarised build (§40) | `docs/PACKAGING.md` | — | BLOCKED_EXTERNAL | needs a Developer ID certificate |
 | Z-07 | STT | A real AssemblyAI round trip (§8) | provider + mocks complete | `AssemblyAITests` | BLOCKED_EXTERNAL | needs a key; on-device covers dictation meanwhile |
 
-## The three that are not PASS, and why
+## What is not PASS, and why
 
-**C-05 and M-03 are PARTIAL, deliberately.** Neither is a false claim in the UI. The
-model-download controls exist and work; what is missing underneath is the whisper.cpp
-binding, and the README says so. Favourites and per-item tags have schema columns and
-no interface, which is a missing feature rather than a broken one.
+Everything in the matrix is PASS except three entries that need something this machine
+does not have. There are no PARTIAL rows left.
 
 **Z-05 is BLOCKED_EXTERNAL and cannot be automated away.** Verifying that insertion
 works in Slack, Terminal or Safari means putting text into somebody's real

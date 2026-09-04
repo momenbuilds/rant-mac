@@ -47,6 +47,8 @@ public struct Transcript: Equatable, Sendable, Identifiable {
   public var source: String
   public var sourceID: String?
   public var favourite: Bool
+  /// The user's own labels for this dictation. Personal, local, never sent anywhere.
+  public var tags: [String]
 
   public init(
     id: Int64? = nil,
@@ -70,8 +72,10 @@ public struct Transcript: Equatable, Sendable, Identifiable {
     contentHash: String? = nil,
     source: String = "rant",
     sourceID: String? = nil,
-    favourite: Bool = false
+    favourite: Bool = false,
+    tags: [String] = []
   ) {
+    self.tags = tags
     self.id = id
     self.createdAt = createdAt
     self.rawText = rawText

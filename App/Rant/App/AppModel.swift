@@ -908,6 +908,33 @@ final class AppModel: ObservableObject {
     refreshHistory()
   }
 
+  /// Pin a dictation so it survives a "delete everything you do not need" sweep of the
+  /// list — and so it can be found again without remembering a word from it.
+  func toggleFavourite(_ transcript: Transcript) {
+    guard let store, let id = transcript.id else { return }
+    try? store.setFavourite(id: id, !transcript.favourite)
+    refreshHistory()
+  }
+
+  func setTags(_ tags: [String], on transcript: Transcript) {
+    guard let store, let id = transcript.id else { return }
+    try? store.setTags(id: id, tags)
+    refreshHistory()
+  }
+
+  /// Correct the text of a dictation Rant got wrong.
+  ///
+  /// Only the final text. The raw transcript is what was actually heard and stays as
+  /// it was — losing it would make the history a record of what you meant rather than
+  /// of what happened, and the two are worth telling apart.
+  func updateText(_ text: String, on transcript: Transcript) {
+    guard let store, let id = transcript.id else { return }
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    try? store.update(id: id, finalText: trimmed)
+    refreshHistory()
+  }
+
   func deleteAllHistory() {
     try? store?.deleteAll()
     refreshHistory()
