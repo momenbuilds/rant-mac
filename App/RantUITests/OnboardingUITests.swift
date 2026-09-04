@@ -17,17 +17,25 @@ final class OnboardingUITests: XCTestCase {
 
   private var app: XCUIApplication!
 
-  override func setUp() {
+  // The `async` overloads of setUp and tearDown, rather than the synchronous ones.
+  //
+  // XCTest declares the synchronous versions `nonisolated`, so a main-actor test class
+  // cannot touch its own properties from them — and `XCUIElement`'s methods *are*
+  // main-actor isolated under Xcode 16, which is what CI builds with. The async
+  // overloads inherit the class's isolation, so both compilers agree. Xcode 26 accepts
+  // the naive version and Xcode 16 does not, which is exactly the difference that
+  // turns "green on my machine" into a red build nobody can reproduce.
+  override func setUp() async throws {
     continueAfterFailure = false
     app = XCUIApplication()
     // A clean slate each run: the app reads this and starts from first-run state with
-    // an in-memory database, so a UI test never touches the developer's real history.
+    // an in-memory database, so a UI test never touches real history.
     app.launchArguments += ["-rant-ui-testing", "YES"]
     app.launch()
   }
 
-  override func tearDown() {
-    app.terminate()
+  override func tearDown() async throws {
+    app?.terminate()
   }
 
   // MARK: - Onboarding
