@@ -234,11 +234,12 @@ final class OnboardingUITests: XCTestCase {
     }
   }
 
-  /// A `TabView` tab does not inherit an accessibility identifier from its content —
-  /// on macOS it surfaces as a radio button labelled with the tab's title, so this is
-  /// the one place the label is the only handle available.
+  /// The settings pane picker is the app's own control, so each tab carries an
+  /// identifier. It used to be a `TabView`, whose tabs surfaced as bare radio buttons
+  /// and could only be found by their visible label — which made this test break on a
+  /// rename that changed nothing about behaviour.
   private func settingsTab(_ title: String) -> XCUIElement {
-    app.radioButtons[title]
+    element("settings.tab.\(title.lowercased())")
   }
 
   /// Wait, then click. Clicking an element that has not appeared yet is the single

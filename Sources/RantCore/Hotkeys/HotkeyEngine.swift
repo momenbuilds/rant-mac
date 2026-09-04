@@ -171,9 +171,19 @@ public final class HotkeyEngine: @unchecked Sendable {
       let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
       guard let trigger = lock.withLock({ configuration.trigger }).keyCode, keyCode == trigger
       else {
-        // Some other modifier moved. If it went down while our trigger is held, the
-        // user is building a shortcut.
-        if lock.withLock({ gate.isRecording }) == false, !flags.isEmpty {
+        // Some other modifier moved. Only one that moved *down* means the user is
+        // building a shortcut, and cancelling is only right in that case.
+        //
+        // The old test was `!flags.isEmpty`, which is true for every flagsChanged that
+        // arrives while the trigger is held — the trigger's own flag is still set. So a
+        // modifier being *released*, or a synthetic flag change (which carries key code
+        // 0 and no physical key at all), read as "a shortcut is starting" and cancelled
+        // the recording the instant it began. `isDown` returns false unless the event's
+        // own key is a real modifier whose device flag is currently set, which excludes
+        // both cases.
+        if Self.isDown(keyCode: keyCode, flags: flags),
+          lock.withLock({ gate.isRecording }) == false
+        {
           actions = lock.withLock { gate.handle(.otherKeyDown, at: now) }
         }
         break
@@ -209,8 +219,15 @@ public final class HotkeyEngine: @unchecked Sendable {
   }
 
   private func dispatch(_ actions: [GateAction]) {
-    if !actions.isEmpty {
-      log.info("gate produced \(actions.count) action(s)")
+    // This runs inside the event tap callback, in the system's input delivery path.
+    // `.passThrough` is the answer for the overwhelming majority of events — every
+    // ordinary keystroke on the machine — and says nothing worth recording, so logging
+    // it meant a log line per keypress and made the whole Mac feel slow.
+    let notable = actions.filter {
+      if case .passThrough = $0 { return false } else { return true }
+    }
+    if !notable.isEmpty {
+      log.info("gate produced \(notable.count) action(s)")
     }
     for action in actions {
       switch action {

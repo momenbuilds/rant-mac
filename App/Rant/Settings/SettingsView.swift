@@ -1,38 +1,123 @@
 import RantCore
 import SwiftUI
 
+/// The settings panes, as one list so the picker and the content can never disagree
+/// about what exists.
+enum SettingsPane: String, CaseIterable, Identifiable {
+  case general, speech, intelligence, privacy, diagnostics
+
+  var id: String { rawValue }
+
+  var title: String {
+    switch self {
+    case .general: "General"
+    case .speech: "Speech"
+    case .intelligence: "Intelligence"
+    case .privacy: "Privacy"
+    case .diagnostics: "Diagnostics"
+    }
+  }
+
+  var symbol: String {
+    switch self {
+    case .general: "gearshape"
+    case .speech: "waveform"
+    case .intelligence: "wand.and.stars"
+    case .privacy: "hand.raised"
+    case .diagnostics: "stethoscope"
+    }
+  }
+}
+
 struct SettingsView: View {
   @EnvironmentObject private var model: AppModel
   @EnvironmentObject private var preferences: Preferences
   @EnvironmentObject private var permissions: Permissions
 
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var pane: SettingsPane = .general
+  @Namespace private var paneHighlight
+
+  // A `TabView` here drew its own tab bar at the top of the *window*, above the page
+  // title and outside the page's margins, so Settings was the one screen that did not
+  // look like the rest of the app. Its tabs also surfaced as bare radio buttons with
+  // no identifiers of their own. Owning the control fixes the layout and lets each
+  // tab carry an identifier.
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
-      PageTitle(title: "Settings", subtitle: "Everything Rant does, and what it does with your words.")
-        .padding(.horizontal, Theme.Spacing.page)
-        .padding(.top, Theme.Spacing.page)
-      TabView {
-      GeneralSettings()
-        .tabItem { Label("General", systemImage: "gearshape") }
-        .accessibilityIdentifier("settings.general")
-      SpeechSettings()
-        .tabItem { Label("Speech", systemImage: "waveform") }
-        .accessibilityIdentifier("settings.speech")
-      IntelligenceSettings()
-        .tabItem { Label("Intelligence", systemImage: "wand.and.stars") }
-        .accessibilityIdentifier("settings.intelligence")
-      PrivacySettings()
-        .tabItem { Label("Privacy", systemImage: "hand.raised") }
-        .accessibilityIdentifier("settings.privacy")
-      DiagnosticsSettings()
-        .tabItem { Label("Diagnostics", systemImage: "stethoscope") }
-        .accessibilityIdentifier("settings.diagnostics")
+      PageTitle(
+        title: "Settings", subtitle: "Everything Rant does, and what it does with your words.")
+
+      picker
+
+      // No ScrollView here: every pane is a grouped `Form`, which scrolls itself.
+      // Nesting the two gives an inner scroller inside an outer one and a form that
+      // will not reach its own bottom.
+      Group {
+        switch pane {
+        case .general: GeneralSettings()
+        case .speech: SpeechSettings()
+        case .intelligence: IntelligenceSettings()
+        case .privacy: PrivacySettings()
+        case .diagnostics: DiagnosticsSettings()
+        }
       }
-      .padding(.horizontal, Theme.Spacing.medium)
-      .padding(.bottom, Theme.Spacing.medium)
+      .scrollContentBackground(.hidden)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
+    .padding(.horizontal, Theme.Spacing.page)
+    .padding(.top, Theme.Spacing.page)
+    .padding(.bottom, Theme.Spacing.medium)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(Theme.paper)
+  }
+
+  private var picker: some View {
+    HStack(spacing: Theme.Spacing.hair) {
+      ForEach(SettingsPane.allCases) { candidate in
+        Button {
+          withAnimation(Theme.animation(Theme.springy, reduceMotion: reduceMotion)) {
+            pane = candidate
+          }
+        } label: {
+          SettingsPaneLabel(
+            pane: candidate, isSelected: pane == candidate, highlight: paneHighlight)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("settings.tab.\(candidate.rawValue)")
+      }
+      Spacer(minLength: 0)
+    }
+    .padding(Theme.Spacing.hair)
+    .background(
+      RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+        .fill(Theme.sunken))
+  }
+}
+
+/// Pulled out of the picker because the whole chain inline defeated the type checker.
+private struct SettingsPaneLabel: View {
+  let pane: SettingsPane
+  let isSelected: Bool
+  let highlight: Namespace.ID
+
+  var body: some View {
+    Label(pane.title, systemImage: pane.symbol)
+      .labelStyle(.titleAndIcon)
+      .font(.system(size: 12, weight: .medium))
+      .foregroundStyle(isSelected ? Theme.clay : Theme.inkMuted)
+      .padding(.horizontal, Theme.Spacing.small)
+      .padding(.vertical, Theme.Spacing.tight)
+      .background(selectionBackground)
+      .contentShape(Rectangle())
+  }
+
+  @ViewBuilder private var selectionBackground: some View {
+    if isSelected {
+      RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
+        .fill(Theme.surface)
+        .matchedGeometryEffect(id: "settings.pane", in: highlight)
+    }
   }
 }
 

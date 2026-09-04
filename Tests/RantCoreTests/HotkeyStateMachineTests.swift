@@ -297,3 +297,37 @@ extension HotkeyStateMachineTests {
   }
 }
 #endif
+
+/// The gate decides *what* a key event means; the engine decides *which* gate event a
+/// raw `flagsChanged` even is. That classification had a bug that made the product
+/// unusable — every recording was cancelled the instant it started — and it lived
+/// entirely outside the state machine, so no gate test could have caught it.
+final class HotkeyEngineClassificationTests: XCTestCase {
+
+  private let rightCommandDown = CGEventFlags(rawValue: 0x0000_0010 | CGEventFlags.maskCommand.rawValue)
+
+  func testAModifierGoingDownIsRecognised() {
+    // Left option, with its device bit set: a real second modifier, a real shortcut.
+    let flags = CGEventFlags(rawValue: 0x0000_0020 | CGEventFlags.maskAlternate.rawValue)
+    XCTAssertTrue(HotkeyEngine.isDown(keyCode: 58, flags: flags))
+  }
+
+  /// The regression. While the trigger is held its own flag stays set, so *any*
+  /// `flagsChanged` looked like "another modifier is down" under the old
+  /// `!flags.isEmpty` test — including one reporting a modifier being released.
+  func testAModifierGoingUpIsNotAShortcutStarting() {
+    // Left option released: the option bits are gone, but right command is still held,
+    // so the flag set as a whole is very much not empty.
+    XCTAssertFalse(HotkeyEngine.isDown(keyCode: 58, flags: rightCommandDown))
+  }
+
+  /// Synthetic flag changes — including the ⌘V this app posts itself to paste a
+  /// transcript — carry key code 0 and no physical modifier at all.
+  func testASyntheticFlagChangeIsNotAKeyGoingDown() {
+    XCTAssertFalse(HotkeyEngine.isDown(keyCode: 0, flags: rightCommandDown))
+  }
+
+  func testANonModifierKeyIsNeverReportedAsAModifierGoingDown() {
+    XCTAssertFalse(HotkeyEngine.isDown(keyCode: 4, flags: rightCommandDown))  // "h"
+  }
+}

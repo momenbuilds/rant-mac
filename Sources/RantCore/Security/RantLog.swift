@@ -48,22 +48,31 @@ public struct RantLog: Sendable {
     return directory.appendingPathComponent("rant.log")
   }
 
-  private static let fileLock = NSLock()
+  /// Writes happen here, never on the caller's thread.
+  ///
+  /// A line costs a file open, a seek, a write and a close. That is cheap in isolation
+  /// and ruinous on the wrong thread: the hotkey engine logs from inside the CGEventTap
+  /// callback, which sits in the system's input delivery path, so every keystroke on
+  /// the machine waited for a synchronous disk write and the whole Mac felt slow.
+  ///
+  /// Utility QoS, because a diagnostic file is never worth taking priority from the
+  /// thing it is diagnosing.
+  private static let fileQueue = DispatchQueue(label: "com.rant.log.file", qos: .utility)
 
   private static func appendToFile(_ category: String, _ level: String, _ message: String) {
     guard let fileURL else { return }
     let stamp = Date().formatted(date: .omitted, time: .standard)
     let line = "\(stamp) [\(level)] \(category): \(message)\n"
-    fileLock.lock()
-    defer { fileLock.unlock() }
-    // Best effort throughout: a diagnostic log that can fail a dictation would be
-    // worse than no diagnostic log.
-    if let handle = try? FileHandle(forWritingTo: fileURL) {
-      defer { try? handle.close() }
-      _ = try? handle.seekToEnd()
-      try? handle.write(contentsOf: Data(line.utf8))
-    } else {
-      try? Data(line.utf8).write(to: fileURL)
+    fileQueue.async {
+      // Best effort throughout: a diagnostic log that can fail a dictation would be
+      // worse than no diagnostic log.
+      if let handle = try? FileHandle(forWritingTo: fileURL) {
+        defer { try? handle.close() }
+        _ = try? handle.seekToEnd()
+        try? handle.write(contentsOf: Data(line.utf8))
+      } else {
+        try? Data(line.utf8).write(to: fileURL)
+      }
     }
   }
 
