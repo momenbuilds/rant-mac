@@ -424,17 +424,44 @@ final class AppModel: ObservableObject {
 
   // MARK: - Commands the UI can issue
 
+  /// Start, or stop and transcribe.
+  ///
+  /// This deliberately does not require the event tap. It used to open with
+  /// `guard let hotkeys else { return }`, which meant the menu bar item, the ⌘⇧D
+  /// command and the permission-free ⌥Space fallback all silently did nothing
+  /// whenever Accessibility was missing — the one situation where they matter most.
+  /// The tap is one way to *ask* for a dictation, not a precondition for having one.
   func toggleDictation() {
-    guard let hotkeys else { return }
-    if hotkeys.isRecording {
+    if let hotkeys, hotkeys.isRecording {
       hotkeys.requestStop()
-    } else {
-      Task { await session?.start(settings: preferences.dictationSettings) }
+      return
+    }
+    let settings = preferences.dictationSettings
+    Task { [weak self] in
+      guard let self, let session = self.session else { return }
+      if await session.state == .listening {
+        _ = await session.stopAndTranscribe(settings: settings)
+      } else {
+        await session.start(settings: settings)
+      }
     }
   }
 
-  func stopDictation() { hotkeys?.requestStop() }
-  func cancelDictation() { hotkeys?.requestCancel() }
+  func stopDictation() {
+    if let hotkeys, hotkeys.isRecording {
+      hotkeys.requestStop()
+      return
+    }
+    let settings = preferences.dictationSettings
+    Task { [weak self] in
+      _ = await self?.session?.stopAndTranscribe(settings: settings)
+    }
+  }
+
+  func cancelDictation() {
+    hotkeys?.requestCancel()
+    Task { [weak self] in await self?.session?.cancel() }
+  }
 
   func pasteLast() {
     Task { _ = await session?.pasteLast() }
