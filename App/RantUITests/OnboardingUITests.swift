@@ -141,7 +141,9 @@ final class OnboardingUITests: XCTestCase {
     XCTAssertTrue(toggle.isHittable, "the privacy toggle exists but cannot be clicked")
     let before = isOn(toggle)
     toggle.click()
-    XCTAssertNotEqual(isOn(toggle), before, "clicking the toggle did not change it")
+    XCTAssertTrue(
+      waitForState(toggle, toDifferFrom: before),
+      "clicking the toggle did not change it — \(describe(toggle))")
 
     app.terminate()
     app.launchArguments += ["-rant-ui-testing-keep-preferences", "YES"]
@@ -151,7 +153,9 @@ final class OnboardingUITests: XCTestCase {
     settingsTab("Privacy").click()
     let after = switchElement("settings.localOnly")
     XCTAssertTrue(after.waitForExistence(timeout: 5))
-    XCTAssertNotEqual(isOn(after), before, "the setting did not survive a relaunch")
+    XCTAssertTrue(
+      waitForState(after, toDifferFrom: before),
+      "the setting did not survive a relaunch — \(describe(after))")
   }
 
   /// The privacy claims are load-bearing, so they should be visible in the app and
@@ -182,11 +186,36 @@ final class OnboardingUITests: XCTestCase {
   /// compares nothing to nothing. Ask for the switch (macOS may render it as a
   /// checkbox), and fall back only if neither exists.
   private func switchElement(_ identifier: String) -> XCUIElement {
-    let asSwitch = app.switches[identifier]
-    if asSwitch.exists { return asSwitch }
-    let asCheckBox = app.checkBoxes[identifier]
-    if asCheckBox.exists { return asCheckBox }
-    return element(identifier)
+    if app.switches[identifier].exists { return app.switches[identifier] }
+    if app.checkBoxes[identifier].exists { return app.checkBoxes[identifier] }
+    // SwiftUI may hang the identifier on a wrapper rather than on the control, in
+    // which case the control is a descendant of it — and the wrapper has no `value`,
+    // so reading the wrapper reports "off" no matter what the switch is doing.
+    let container = element(identifier)
+    if container.switches.firstMatch.exists { return container.switches.firstMatch }
+    if container.checkBoxes.firstMatch.exists { return container.checkBoxes.firstMatch }
+    return container
+  }
+
+  /// A click is delivered asynchronously and SwiftUI redraws on the next runloop pass,
+  /// so reading the value on the very next line races the update. Poll instead of
+  /// sleeping a fixed amount: fast when it works, and still honest when it does not.
+  private func waitForState(
+    _ element: XCUIElement, toDifferFrom before: Bool, timeout: TimeInterval = 5
+  ) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    repeat {
+      if isOn(element) != before { return true }
+      Thread.sleep(forTimeInterval: 0.1)
+    } while Date() < deadline
+    return false
+  }
+
+  /// Put the element's type and raw value in the failure message. Without it, a
+  /// toggle that reports "off" because it is the wrong element looks exactly like a
+  /// toggle that reports "off" because the setting did not persist.
+  private func describe(_ element: XCUIElement) -> String {
+    "elementType=\(element.elementType.rawValue) value=\(String(describing: element.value))"
   }
 
   /// Read a toggle's on/off state without depending on how it bridges.
