@@ -75,7 +75,7 @@ public final class HotkeyEngine: @unchecked Sendable {
     defer { lock.unlock() }
     guard tap == nil else { return true }
     guard AXIsProcessTrusted() else {
-      log.warning("cannot install event tap without Accessibility permission")
+      log.warning("cannot install event tap: Accessibility not granted to this bundle")
       return false
     }
 
@@ -179,6 +179,7 @@ public final class HotkeyEngine: @unchecked Sendable {
         break
       }
       let isDown = Self.isDown(keyCode: keyCode, flags: flags)
+      log.info("trigger key \(keyCode) \(isDown ? "down" : "up")")
       if isDown {
         let others = Self.otherModifiersPresent(flags, excluding: keyCode)
         actions = lock.withLock { gate.handle(.triggerDown(otherModifiersHeld: others), at: now) }
@@ -208,6 +209,9 @@ public final class HotkeyEngine: @unchecked Sendable {
   }
 
   private func dispatch(_ actions: [GateAction]) {
+    if !actions.isEmpty {
+      log.info("gate produced \(actions.count) action(s)")
+    }
     for action in actions {
       switch action {
       case .startRecording(let kind): handler(.startRecording(kind))

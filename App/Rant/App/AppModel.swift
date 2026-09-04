@@ -81,6 +81,17 @@ final class AppModel: ObservableObject {
     permissions.startWatching()
     watchPreferences()
 
+    // Register with macOS so Rant appears in the Accessibility list.
+    //
+    // An app that has never asked is not in that list at all, so a user who goes
+    // looking finds nothing to switch on and has to know about the "+" button and
+    // where the bundle lives. Asking once puts the row there — unchecked — which
+    // turns the whole problem into one toggle. macOS shows its own dialog, which is
+    // the honest place for that request to come from.
+    if !permissions.accessibility.isGranted, preferences.hasCompletedOnboarding {
+      permissions.requestAccessibility()
+    }
+
     if Self.isDemoingOverlay { startOverlayDemo() }
     if let directory = Self.gifRenderDirectory { renderOverlayFrames(into: directory) }
   }
@@ -334,9 +345,11 @@ final class AppModel: ObservableObject {
       hotkeys = engine
       hotkeyProblem = nil
       listeningFor = preferences.triggerKey
+      log.info("event tap installed, listening for \(preferences.triggerKey.rawValue)")
     } else {
       listeningFor = nil
       hotkeys = nil
+      log.error("event tap NOT installed (trusted: \(AXIsProcessTrusted()))")
       hotkeyProblem = permissions.accessibility.isGranted
         ? "Rant could not install its keyboard listener. Try quitting and reopening Rant."
         : "Rant needs Accessibility permission before your dictation key can work anywhere."
@@ -344,7 +357,11 @@ final class AppModel: ObservableObject {
   }
 
   private func handle(_ command: HotkeyEngine.Command) {
-    guard let session else { return }
+    log.info("command \(String(describing: command))")
+    guard let session else {
+      log.error("no dictation session; the pipeline was never built")
+      return
+    }
     let settings = preferences.dictationSettings
     switch command {
     case .startRecording:

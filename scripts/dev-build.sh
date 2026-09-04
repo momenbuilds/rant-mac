@@ -53,6 +53,17 @@ codesign --force --deep --sign - \
   --entitlements App/Rant/Rant.entitlements \
   "$TARGET" 2>/dev/null || codesign --force --deep --sign - "$TARGET"
 
+# The signature changes on every build, and macOS binds Accessibility grants to it.
+# Clearing the stale entry here means the app is never left in the state that wastes
+# the most time: a switch that looks on, pointing at a binary that no longer exists.
+if [ "${RESET_TCC:-1}" = "1" ]; then
+  BUNDLE_ID=$(defaults read "$TARGET/Contents/Info" CFBundleIdentifier 2>/dev/null || echo "")
+  if [ -n "$BUNDLE_ID" ]; then
+    echo "==> clearing the stale Accessibility grant for $BUNDLE_ID"
+    tccutil reset Accessibility "$BUNDLE_ID" >/dev/null 2>&1 || true
+  fi
+fi
+
 echo "==> launching"
 open "$TARGET"
 
@@ -60,6 +71,12 @@ cat <<NOTE
 
 Installed: $TARGET
 Bundle id: $(defaults read "$TARGET/Contents/Info" CFBundleIdentifier 2>/dev/null || echo unknown)
+
+Rebuilding changes the app's signature, and macOS ties Accessibility to that
+signature — so the grant from the previous build no longer applies and the switch in
+System Settings points at a binary that no longer exists. This script clears it for
+you; grant it once more after the last build you intend to make. (Set RESET_TCC=0 to
+skip that.)
 
 If macOS asks for your login password when Rant reads your API key, that is the old
 file keychain noticing the app's signature changed. Rant now stores new keys in the
