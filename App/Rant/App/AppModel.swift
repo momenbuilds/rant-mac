@@ -25,6 +25,8 @@ final class AppModel: ObservableObject {
   @Published private(set) var meetingController: MeetingController?
   /// Owns the transform panel and its hotkey.
   @Published private(set) var transformController: TransformController?
+  /// Owns the command-mode panel and its hotkey.
+  @Published private(set) var commandController: CommandController?
   /// Owns the local MCP server. Built only once the database is open.
   @Published private(set) var mcpController: MCPController?
   /// Upcoming calendar events, for the notetaker. Empty until permission is granted.
@@ -65,6 +67,7 @@ final class AppModel: ObservableObject {
   /// The permission-free fallback, used while Accessibility is missing.
   private var fallbackHotkey: CarbonHotkey?
   private var transformHotkey: CarbonHotkey?
+  private var commandHotkey: CarbonHotkey?
 
   /// Presenting the overlay is a window operation, so it is owned by the controller
   /// rather than by a SwiftUI scene — a floating recorder must not steal focus, and
@@ -92,6 +95,7 @@ final class AppModel: ObservableObject {
     buildSession()
     installHotkeys()
     installTransformHotkey()
+    installCommandHotkey()
     refreshHistory()
     startMeterUpdates()
     // Before anything else can add to it: audio that outlived the policy while Rant
@@ -510,6 +514,43 @@ final class AppModel: ObservableObject {
 
   func beginTransform() {
     makeTransformControllerIfNeeded()?.begin()
+  }
+
+  /// The command key, separate from dictation as the spec requires.
+  private func installCommandHotkey() {
+    guard commandHotkey == nil else { return }
+    let hotkey = CarbonHotkey(.optionShiftC) { [weak self] in
+      Task { @MainActor [weak self] in self?.toggleCommandMode() }
+    }
+    if hotkey.register() {
+      commandHotkey = hotkey
+      log.info("command key on \(CarbonHotkey.Combination.optionShiftC.displayName)")
+    } else {
+      log.warning("could not register the command key; another app has it")
+    }
+  }
+
+  func makeCommandControllerIfNeeded() -> CommandController? {
+    if let commandController { return commandController }
+    let controller = CommandController(
+      executor: CommandExecutor(
+        engine: TransformEngine(
+          enhancer: makeEnhancementProvider(), injector: AccessibilityInjector()),
+        pasteboard: SystemPasteboard()),
+      microphone: microphone,
+      context: AccessibilityContextProvider(),
+      contextSettings: { [weak self] in self?.preferences.contextSettings ?? .default },
+      makeProvider: { [weak self] in
+        self?.makeTranscriptionProvider()
+          ?? UnavailableProvider(
+            reason: TranscriptionError.modelUnavailable("speech provider"))
+      })
+    commandController = controller
+    return controller
+  }
+
+  func toggleCommandMode() {
+    makeCommandControllerIfNeeded()?.toggle()
   }
 
   /// Claims a plain shortcut so Rant does something useful before any permission is

@@ -572,8 +572,15 @@ struct IntegrationsSettings: View {
       }
 
       Section("Keyboard") {
-        LabeledContent("Transform selection", value: CarbonHotkey.Combination.optionShiftT.displayName)
+        LabeledContent(
+          "Transform selection",
+          value: CarbonHotkey.Combination.optionShiftT.displayName)
+        LabeledContent(
+          "Command mode",
+          value: CarbonHotkey.Combination.optionShiftC.displayName)
         LabeledContent("Dictate without Accessibility", value: model.fallbackShortcut ?? "—")
+        Text("Command mode is a separate key on purpose: “make this shorter” has to be an instruction, not six words typed into your document.")
+          .font(.caption).foregroundStyle(.secondary)
       }
     }
     .formStyle(.grouped)
