@@ -12,6 +12,8 @@ final class ScriptedTranscriber: TranscriptionProvider, @unchecked Sendable {
   private let lock = NSLock()
   private(set) var receivedContexts: [TranscriptionContext?] = []
   private(set) var receivedOptions: [TranscriptionOptions] = []
+  /// The audio each call was given, so a test can prove nothing was lost on the way.
+  private(set) var receivedAudio: [AudioBuffer] = []
   private(set) var warmUpCount = 0
 
   init(_ results: [Result<TranscriptionResult, Error>], sendsAudioOffDevice: Bool = true) {
@@ -35,6 +37,7 @@ final class ScriptedTranscriber: TranscriptionProvider, @unchecked Sendable {
     let result: Result<TranscriptionResult, Error> = lock.withLock {
       receivedContexts.append(context)
       receivedOptions.append(options)
+      receivedAudio.append(audio)
       if results.count > 1 { return results.removeFirst() }
       return results.first ?? .failure(TranscriptionError.malformedResponse)
     }

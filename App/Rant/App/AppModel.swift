@@ -376,12 +376,14 @@ final class AppModel: ObservableObject {
       context: context,
       store: store,
       enhancer: makeEnhancementProvider(),
-      vocabulary: (try? vocabulary?.makeApplier()) ?? VocabularyApplier())
+      vocabulary: (try? vocabulary?.makeApplier()) ?? VocabularyApplier(),
+      streamer: makeStreamingProvider())
 
     let newSession = session
     let relay = StateRelay(model: self)
     Task {
       await newSession?.observeState { state in relay.send(state) }
+      await newSession?.observePartials { text in relay.sendPartial(text) }
     }
     engineReady = true
   }
@@ -419,6 +421,23 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// The live-preview provider, or nil.
+  ///
+  /// Only AssemblyAI streams, and only when the user has asked for the preview and is
+  /// not in local-only mode — a websocket to a speech provider is exactly what
+  /// local-only forbids, and it must not be opened merely because a preview is nice.
+  /// `AssemblyAIStreamProvider` was fully implemented and tested and had no caller.
+  private func makeStreamingProvider() -> (any StreamingTranscriptionProvider)? {
+    guard preferences.livePreview,
+      !preferences.localOnly,
+      preferences.speechProvider == "assemblyai"
+    else { return nil }
+    let secrets = self.secrets
+    return AssemblyAIStreamProvider(
+      keyProvider: { try secrets.read(.assemblyAI) },
+      contextSettings: preferences.contextSettings)
+  }
+
   private func makeEnhancementProvider() -> any EnhancementProvider {
     switch preferences.enhancementProvider {
     case "ollama":
@@ -430,8 +449,20 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Interim text from a streaming provider, on its way to the recorder.
+  fileprivate func applyPartial(_ text: String) {
+    partialText = text
+    overlay.updatePartial(text)
+  }
+
   fileprivate func apply(_ state: DictationState) {
     self.state = state
+    // The preview belongs to one recording. Leaving the last dictation's words under
+    // the pill while the next one starts is worse than showing nothing.
+    if !state.isBusy {
+      partialText = ""
+      overlay.updatePartial("")
+    }
     switch state {
     case .listening:
       overlay.show(state: state)
@@ -936,5 +967,9 @@ private final class StateRelay: @unchecked Sendable {
 
   func send(_ state: DictationState) {
     Task { @MainActor in self.model?.apply(state) }
+  }
+
+  func sendPartial(_ text: String) {
+    Task { @MainActor in self.model?.applyPartial(text) }
   }
 }

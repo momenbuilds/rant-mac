@@ -255,6 +255,13 @@ struct SpeechSettings: View {
       // The device preference existed and was never handed to the capture, and there
       // was nowhere to set it. Both halves are here now: the list, and a meter that
       // proves the chosen microphone is the one being heard.
+      Section("Live preview") {
+        Toggle("Show words while I am still speaking", isOn: $preferences.livePreview)
+          .onChange(of: preferences.livePreview) { _, _ in model.buildSession() }
+        Text("Streams the audio to AssemblyAI a second time so the recorder can show interim text. The on-device engine does not stream, and Local only refuses it outright — the preview is not worth opening a connection you asked Rant not to open.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
       Section("Microphone") {
         Picker("Input", selection: Binding(
           get: { preferences.microphoneUniqueID ?? "" },

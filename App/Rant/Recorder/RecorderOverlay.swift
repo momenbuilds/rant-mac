@@ -28,15 +28,37 @@ struct RecorderOverlay: View {
   private var geometry: MeterGeometry { MeterGeometry(barCount: Pill.barCount) }
 
   var body: some View {
-    HStack(spacing: 6) {
-      leading
-      centre
-      trailing
+    VStack(spacing: 4) {
+      HStack(spacing: 6) {
+        leading
+        centre
+        trailing
+      }
+      .padding(.horizontal, 6)
+      .frame(height: Pill.height)
+      .background(Theme.overlaySurface, in: Capsule())
+      .overlay(Capsule().strokeBorder(Theme.hairlineStrong, lineWidth: 1))
+
+      // The live preview sits under the pill rather than inside it, so the pill keeps
+      // its size and shape whether or not the provider streams. Absent for the
+      // on-device engine, which does not.
+      if !controller.partial.isEmpty, controller.state.isBusy {
+        Text(controller.partial)
+          .font(.system(size: 11.5))
+          .foregroundStyle(Theme.inkMuted)
+          .lineLimit(2)
+          .truncationMode(.head)
+          .multilineTextAlignment(.center)
+          .padding(.horizontal, 10)
+          .padding(.vertical, 5)
+          .frame(maxWidth: 320)
+          .background(Theme.overlaySurface, in: RoundedRectangle(cornerRadius: 9))
+          .overlay(
+            RoundedRectangle(cornerRadius: 9)
+              .strokeBorder(Theme.hairline, lineWidth: 1))
+          .transition(.opacity)
+      }
     }
-    .padding(.horizontal, 6)
-    .frame(height: Pill.height)
-    .background(Theme.overlaySurface, in: Capsule())
-    .overlay(Capsule().strokeBorder(Theme.hairlineStrong, lineWidth: 1))
     .shadow(color: .black.opacity(0.24), radius: 11, y: 3)
     .animation(Theme.animation(Theme.springy, reduceMotion: reduceMotion), value: controller.state)
     // One label for the whole thing: VoiceOver should say what is happening, not

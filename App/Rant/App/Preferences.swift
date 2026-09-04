@@ -55,6 +55,7 @@ final class Preferences: ObservableObject {
     self.developerMode = defaults.bool(forKey: Key.developerMode)
     self.mcpEnabled = defaults.bool(forKey: Key.mcpEnabled)
     self.learnFromCorrections = defaults.bool(forKey: Key.learnFromCorrections)
+    self.livePreview = defaults.object(forKey: Key.livePreview) as? Bool ?? true
   }
 
   private enum Key {
@@ -77,6 +78,7 @@ final class Preferences: ObservableObject {
     static let contextUseClipboard = "rant.context.clipboard"
     static let contextUseScreenOCR = "rant.context.ocr"
     static let excludedBundleIDs = "rant.context.excluded"
+    static let livePreview = "rant.speech.livePreview"
     static let modeResolver = "rant.modes.resolver"
     static let mcpSettings = "rant.mcp.settings"
     static let learnFromCorrections = "rant.learning.enabled"
@@ -246,6 +248,15 @@ final class Preferences: ObservableObject {
     didSet { defaults.set(learnFromCorrections, forKey: Key.learnFromCorrections) }
   }
 
+  /// Show words in the recorder while you are still speaking.
+  ///
+  /// Costs a second connection to the speech provider for the same audio, which is
+  /// why it is a switch rather than always on — and why local-only refuses it outright
+  /// regardless of what this says.
+  @Published var livePreview: Bool {
+    didSet { defaults.set(livePreview, forKey: Key.livePreview) }
+  }
+
   /// Put every setting back to its default.
   ///
   /// Removes the `rant.` keys and reloads, rather than assigning defaults one at a
@@ -284,6 +295,7 @@ final class Preferences: ObservableObject {
     developerMode = false
     mcpEnabled = false
     learnFromCorrections = false
+    livePreview = true
     objectWillChange.send()
   }
 

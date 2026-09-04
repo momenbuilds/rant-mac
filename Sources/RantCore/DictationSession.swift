@@ -160,6 +160,22 @@ public actor DictationSession {
 
   /// Observers for the overlay.
   private var stateObservers: [@Sendable (DictationState) -> Void] = []
+  private var partialObservers: [@Sendable (String) -> Void] = []
+
+  /// Optional live transcription, for the words-as-you-speak preview.
+  ///
+  /// Separate from `transcriber` because streaming is genuinely optional: the
+  /// on-device engine does not stream, and the overlay has to work without it. When
+  /// present it drives the preview only — the final text still comes from the
+  /// synchronous provider, so a dropped websocket costs a preview rather than a
+  /// dictation.
+  private let streamer: (any StreamingTranscriptionProvider)?
+  private var liveStream: TranscriptionStream?
+  private var streamPump: Task<Void, Never>?
+  private var partialReader: Task<Void, Never>?
+  /// Audio already handed to the stream. Kept because draining the capture for the
+  /// stream would otherwise take those samples out of the final recording.
+  private var streamedAudio = Data()
 
   public init(
     audio: any AudioCaptureProvider,
@@ -169,6 +185,7 @@ public actor DictationSession {
     store: (any TranscriptStore)? = nil,
     enhancer: (any EnhancementProvider)? = nil,
     vocabulary: VocabularyApplier = VocabularyApplier(),
+    streamer: (any StreamingTranscriptionProvider)? = nil,
     now: @escaping @Sendable () -> Date = { Date() }
   ) {
     self.audio = audio
@@ -178,7 +195,13 @@ public actor DictationSession {
     self.store = store
     self.enhancer = enhancer
     self.vocabulary = vocabulary
+    self.streamer = streamer
     self.now = now
+  }
+
+  /// Called with interim text while the user is still speaking.
+  public func observePartials(_ observer: @escaping @Sendable (String) -> Void) {
+    partialObservers.append(observer)
   }
 
   public func observeState(_ observer: @escaping @Sendable (DictationState) -> Void) {
@@ -232,14 +255,105 @@ public actor DictationSession {
 
     if !settings.localOnly {
       await transcriber.warmUp()
+      await openLiveStream(settings: settings)
     }
+  }
+
+  // MARK: - Live preview
+
+  /// Opens the streaming session and starts pumping audio into it.
+  ///
+  /// Entirely best-effort. Every failure path here leaves the dictation working: the
+  /// user loses the words-as-they-speak preview and still gets their transcript from
+  /// the synchronous provider at the end.
+  private func openLiveStream(settings: DictationSettings) async {
+    guard let streamer else { return }
+    streamedAudio = Data()
+    do {
+      let stream = try await streamer.stream(
+        context: capturedContext,
+        options: TranscriptionOptions(
+          cleanupLevel: settings.cleanupLevel,
+          languageCode: settings.languageCode))
+      liveStream = stream
+
+      partialReader = Task { [weak self] in
+        do {
+          for try await partial in stream.partials {
+            await self?.emit(partial: partial.text)
+          }
+        } catch {
+          await self?.noteStreamFailure(error)
+        }
+      }
+
+      streamPump = Task { [weak self] in
+        while !Task.isCancelled {
+          try? await Task.sleep(for: .milliseconds(250))
+          guard !Task.isCancelled else { return }
+          await self?.pumpAudioToStream()
+        }
+      }
+    } catch {
+      log.warning("live preview unavailable: \(error.localizedDescription)")
+      liveStream = nil
+    }
+  }
+
+  private func pumpAudioToStream() async {
+    guard let liveStream, state == .listening else { return }
+    let chunk = await audio.drain()
+    guard !chunk.isEmpty else { return }
+    // Kept, because draining took these samples out of what `stop()` will return.
+    streamedAudio.append(chunk.pcm)
+    await liveStream.send(chunk.pcm)
+  }
+
+  private func emit(partial: String) {
+    guard !partial.isEmpty else { return }
+    for observer in partialObservers { observer(partial) }
+  }
+
+  private func noteStreamFailure(_ error: any Error) {
+    log.warning("live preview ended: \(error.localizedDescription)")
+    liveStream = nil
+  }
+
+  /// Ends the streaming session and returns the audio it consumed, so the final
+  /// transcription still sees the whole recording.
+  private func closeLiveStream() async -> Data {
+    // Nothing streamed, nothing to reclaim. Without this the capture is drained on
+    // every dictation even with no streaming provider, which happens to work only
+    // because the drained bytes are put back a line later — the sort of accident that
+    // survives until somebody reorders two statements.
+    guard liveStream != nil || !streamedAudio.isEmpty else { return Data() }
+    streamPump?.cancel()
+    streamPump = nil
+    // Anything recorded since the last pump belongs to the recording too.
+    let remainder = await audio.drain()
+    streamedAudio.append(remainder.pcm)
+    await liveStream?.finish()
+    partialReader?.cancel()
+    partialReader = nil
+    liveStream = nil
+    let consumed = streamedAudio
+    streamedAudio = Data()
+    return consumed
   }
 
   /// Stop capturing and run the rest of the pipeline.
   @discardableResult
   public func stopAndTranscribe(settings: DictationSettings = .default) async -> DictationOutcome? {
     guard state == .listening else { return nil }
-    let buffer = await audio.stop()
+    // Order matters: the stream is closed first so the samples it consumed come back
+    // and can be put in front of whatever is left. Reversing these two lines silently
+    // truncates every dictation to its last quarter-second.
+    let streamed = await closeLiveStream()
+    let tail = await audio.stop()
+    let buffer =
+      streamed.isEmpty
+      ? tail
+      : AudioBuffer(pcm: streamed + tail.pcm, sampleRate: tail.sampleRate)
     return await run(buffer: buffer, context: capturedContext, settings: settings)
   }
 
@@ -247,6 +361,9 @@ public actor DictationSession {
   public func cancel() async {
     currentTask?.cancel()
     currentTask = nil
+    // Terminate the streaming session properly rather than dropping the socket: a
+    // provider that is billing by the second keeps billing until it times out.
+    _ = await closeLiveStream()
     await audio.cancel()
     setState(.cancelled)
     setState(.idle)

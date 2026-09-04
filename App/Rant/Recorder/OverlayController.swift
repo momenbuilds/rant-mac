@@ -22,6 +22,9 @@ final class OverlayController: ObservableObject {
   private let log = RantLog("Overlay")
   @Published var state: DictationState = .idle
   @Published var meter: [Float] = []
+  /// Interim text from a streaming provider. Empty when there is no live preview,
+  /// which is the normal case for the on-device engine.
+  @Published var partial: String = ""
 
   private var panel: NSPanel?
   private var hideWorkItem: DispatchWorkItem?
@@ -89,6 +92,10 @@ final class OverlayController: ObservableObject {
 
   func updateMeter(_ history: [Float]) {
     meter = history
+  }
+
+  func updatePartial(_ text: String) {
+    partial = text
   }
 
   private func scheduleHide(after delay: TimeInterval) {

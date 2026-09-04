@@ -13,6 +13,22 @@ public protocol AudioCaptureProvider: Sendable, AnyObject {
   var isRecording: Bool { get async }
   /// Normalised 0…1 input level, for the waveform. Polled by the overlay.
   var level: Float { get async }
+
+  /// Take everything captured so far and keep recording.
+  ///
+  /// For the live preview and the notetaker, both of which need audio while it is
+  /// still being spoken rather than at the end. Returning and clearing in one step is
+  /// what keeps that safe: two callers cannot receive the same samples, so nothing is
+  /// transcribed twice.
+  ///
+  /// Defaulted to returning nothing, because a capture that cannot deliver audio
+  /// incrementally is a perfectly good capture — the caller falls back to waiting for
+  /// `stop()`.
+  func drain() async -> AudioBuffer
+}
+
+extension AudioCaptureProvider {
+  public func drain() async -> AudioBuffer { AudioBuffer(pcm: Data()) }
 }
 
 public enum AudioCaptureError: Error, Equatable, LocalizedError {
