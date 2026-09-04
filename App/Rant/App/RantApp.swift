@@ -17,6 +17,12 @@ struct RantApp: App {
         .onReceive(NotificationCenter.default.publisher(for: .rantCancelDictation)) { _ in
           model.cancelDictation()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .rantFinishDictation)) { _ in
+          model.stopDictation()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .rantRetryDictation)) { _ in
+          model.retryLast()
+        }
     }
     .defaultSize(width: 1_100, height: 720)
     .windowStyle(.hiddenTitleBar)

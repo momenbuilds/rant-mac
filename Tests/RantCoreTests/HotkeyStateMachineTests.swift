@@ -237,3 +237,63 @@ final class HotkeyStateMachineTests: XCTestCase {
     }
   }
 }
+
+#if canImport(AppKit)
+import AppKit
+
+/// Flag decoding, against values captured from a real event tap on this machine
+/// rather than from the header comments.
+///
+/// The headers say which bit means which modifier; they do not say that a real
+/// `flagsChanged` also carries device-dependent bits and a non-coalesced bit, so a
+/// naive equality check against `maskSecondaryFn` fails on every actual key press.
+/// These are the bytes the keyboard really sends.
+extension HotkeyStateMachineTests {
+
+  /// Fn / Globe, pressed and released. `0x20000000` is a device bit the hardware sets
+  /// alongside the documented mask.
+  func testTheFnKeyIsRecognisedFromRealEventFlags() {
+    let down = CGEventFlags(rawValue: 0x2080_0100)
+    let up = CGEventFlags(rawValue: 0x2000_0100)
+    XCTAssertTrue(HotkeyEngine.isDown(keyCode: 63, flags: down))
+    XCTAssertFalse(HotkeyEngine.isDown(keyCode: 63, flags: up))
+  }
+
+  /// Right Command carries both the command mask and the right-hand device bit; the
+  /// device bit is the only thing distinguishing it from the left one.
+  func testRightCommandIsDistinguishedFromLeftCommand() {
+    let rightDown = CGEventFlags(rawValue: 0x2010_0010)
+    let leftDown = CGEventFlags(rawValue: 0x0010_0108)
+    XCTAssertTrue(HotkeyEngine.isDown(keyCode: 54, flags: rightDown))
+    XCTAssertFalse(HotkeyEngine.isDown(keyCode: 54, flags: leftDown), "left ⌘ must not fire right ⌘")
+    XCTAssertTrue(HotkeyEngine.isDown(keyCode: 55, flags: leftDown))
+  }
+
+  /// Holding Fn alone is a dictation; holding it as part of a combination is not.
+  func testFnAloneIsNotTreatedAsACombination() {
+    XCTAssertFalse(
+      HotkeyEngine.otherModifiersPresent(CGEventFlags(rawValue: 0x2080_0100), excluding: 63))
+    // Fn together with Command is somebody reaching for a shortcut.
+    XCTAssertTrue(
+      HotkeyEngine.otherModifiersPresent(CGEventFlags(rawValue: 0x2090_0100), excluding: 63))
+  }
+
+  func testTheTriggerKeysOwnModifierIsNotCountedAgainstIt() {
+    // Right ⌘ down: the command mask belongs to the trigger itself, so it must not
+    // read as "another modifier is held" — otherwise the trigger can never fire.
+    XCTAssertFalse(
+      HotkeyEngine.otherModifiersPresent(CGEventFlags(rawValue: 0x2010_0010), excluding: 54))
+  }
+
+  func testEveryTriggerKeyHasAKeyCodeAndADeviceFlag() {
+    for key in TriggerKey.allCases {
+      let code = try? XCTUnwrap(key.keyCode)
+      XCTAssertNotNil(code, "\(key) has no key code")
+      if let code {
+        XCTAssertNotNil(
+          TriggerKey.deviceFlag(for: code), "\(key) has no device flag, so it can never fire")
+      }
+    }
+  }
+}
+#endif

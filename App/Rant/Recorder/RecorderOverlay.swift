@@ -3,46 +3,69 @@ import SwiftUI
 
 /// The floating recorder.
 ///
-/// Designed to be read in a glance and then ignored. It is deliberately not a copy of
-/// anyone's bar: the shape is a low capsule with the meter reading outward from a
-/// live dot on the left, so the eye lands on "is it listening" first and everything
-/// else second. Clay for the app, red only for the microphone being live.
+/// A compact pill rather than a panel: cancel on the left, the meter in the middle,
+/// confirm on the right. It sits over whatever you are writing in, so it has to be
+/// small enough to ignore and legible enough to read in the corner of your eye — and
+/// the two things you might want mid-dictation, *stop* and *throw it away*, should be
+/// one click each rather than hidden behind a keyboard shortcut you have to remember.
+///
+/// The surface is a solid colour, not a material. A material samples what is behind
+/// it, so contrast depended on the wallpaper it happened to sit over — readable on a
+/// dark desktop, washed out on a light one. This is the one surface in the app that
+/// floats over arbitrary content, so it is the one that cannot be translucent.
 struct RecorderOverlay: View {
   @ObservedObject var controller: OverlayController
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-  private var geometry: MeterGeometry { MeterGeometry(barCount: 24) }
+  /// The pill's own metrics. Kept here rather than in the theme because nothing else
+  /// in the app is this shape.
+  private enum Pill {
+    static let height: CGFloat = 52
+    static let control: CGFloat = 34
+    static let barCount = 22
+  }
+
+  private var geometry: MeterGeometry { MeterGeometry(barCount: Pill.barCount) }
 
   var body: some View {
-    HStack(spacing: Theme.Spacing.small) {
-      indicator
-      content
-      Spacer(minLength: 0)
-      if controller.state.isBusy { cancelButton }
+    HStack(spacing: 10) {
+      leading
+      centre
+      trailing
     }
-    .padding(.horizontal, 15)
-    .padding(.vertical, 12)
-    .frame(width: 330, height: 72)
-    .background(Theme.overlaySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.panel))
-    .overlay(
-      RoundedRectangle(cornerRadius: Theme.Radius.panel)
-        .strokeBorder(Theme.hairlineStrong, lineWidth: 1))
-    .shadow(color: .black.opacity(0.22), radius: 20, y: 7)
+    .padding(.horizontal, 9)
+    .frame(height: Pill.height)
+    .background(Theme.overlaySurface, in: Capsule())
+    .overlay(Capsule().strokeBorder(Theme.hairlineStrong, lineWidth: 1))
+    .shadow(color: .black.opacity(0.26), radius: 16, y: 5)
     .animation(Theme.animation(Theme.springy, reduceMotion: reduceMotion), value: controller.state)
     // One label for the whole thing: VoiceOver should say what is happening, not
-    // enumerate two dozen waveform bars.
-    .accessibilityElement(children: .ignore)
+    // enumerate twenty-two waveform bars.
+    .accessibilityElement(children: .contain)
     .accessibilityLabel(accessibilityLabel)
   }
 
-  // MARK: - Indicator
+  // MARK: - Left
 
-  private var indicator: some View {
+  @ViewBuilder private var leading: some View {
+    if controller.state.isBusy {
+      circleButton(
+        icon: "xmark", label: "Cancel dictation", tint: Theme.inkMuted, fill: Theme.sunken
+      ) {
+        NotificationCenter.default.post(name: .rantCancelDictation, object: nil)
+      }
+    } else {
+      statusDot
+        .frame(width: Pill.control, height: Pill.control)
+    }
+  }
+
+  private var statusDot: some View {
     ZStack {
-      // With Reduce Motion on, a ring stands in for the pulse rather than the signal
-      // being lost entirely.
       if pulses && reduceMotion {
-        Circle().strokeBorder(tint.opacity(0.45), lineWidth: 3).frame(width: 18, height: 18)
+        // With Reduce Motion on, a ring stands in for the pulse rather than the
+        // signal being lost entirely.
+        Circle().strokeBorder(tint.opacity(0.45), lineWidth: 3).frame(width: 17, height: 17)
       }
       Circle()
         .fill(tint)
@@ -53,8 +76,118 @@ struct RecorderOverlay: View {
             ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true) : nil,
           value: pulses)
     }
-    .frame(width: 18)
   }
+
+  // MARK: - Middle
+
+  @ViewBuilder private var centre: some View {
+    switch controller.state {
+    case .listening:
+      waveform.frame(width: 132)
+    case .transcribing, .enhancing, .inserting:
+      HStack(spacing: 7) {
+        ProgressView().controlSize(.small).scaleEffect(0.7)
+        Text(busyLabel)
+          .font(.system(size: 12.5, weight: .medium))
+          .foregroundStyle(Theme.ink)
+      }
+      .frame(width: 132)
+    case .success(let text):
+      Text(text)
+        .font(.system(size: 12.5))
+        .foregroundStyle(Theme.inkMuted)
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .frame(width: 168, alignment: .leading)
+    case .failure(let message, _):
+      Text(message)
+        .font(.system(size: 12))
+        .foregroundStyle(Theme.live)
+        .lineLimit(2)
+        .frame(width: 190, alignment: .leading)
+    case .cancelled:
+      Text("Cancelled")
+        .font(.system(size: 12.5)).foregroundStyle(Theme.inkMuted)
+        .frame(width: 132, alignment: .leading)
+    case .idle:
+      waveform.frame(width: 132).opacity(0.28)
+    }
+  }
+
+  private var busyLabel: String {
+    switch controller.state {
+    case .transcribing: "Transcribing"
+    case .enhancing: "Polishing"
+    case .inserting: "Inserting"
+    default: ""
+    }
+  }
+
+  private var waveform: some View {
+    let bars = geometry.bars(from: controller.meter)
+    return HStack(alignment: .center, spacing: 2.5) {
+      ForEach(Array(bars.enumerated()), id: \.offset) { _, height in
+        Capsule()
+          .fill(Theme.clay)
+          .frame(width: 2.5, height: max(3, CGFloat(height) * 22))
+      }
+    }
+    .frame(height: 22)
+    .animation(
+      Theme.animation(.linear(duration: 0.06), reduceMotion: reduceMotion),
+      value: controller.meter)
+  }
+
+  // MARK: - Right
+
+  @ViewBuilder private var trailing: some View {
+    switch controller.state {
+    case .listening:
+      // Finish now. The key does this too, but a button means you can stop without
+      // remembering which key you chose.
+      circleButton(
+        icon: "checkmark", label: "Finish and insert", tint: .white, fill: Theme.clay
+      ) {
+        NotificationCenter.default.post(name: .rantFinishDictation, object: nil)
+      }
+    case .success:
+      Image(systemName: "checkmark")
+        .font(.system(size: 12, weight: .bold))
+        .foregroundStyle(Theme.moss)
+        .frame(width: Pill.control, height: Pill.control)
+        .accessibilityHidden(true)
+    case .failure(_, let retryable):
+      if retryable {
+        circleButton(
+          icon: "arrow.clockwise", label: "Try again", tint: .white, fill: Theme.clay
+        ) {
+          NotificationCenter.default.post(name: .rantRetryDictation, object: nil)
+        }
+      } else {
+        Color.clear.frame(width: 4, height: Pill.control)
+      }
+    default:
+      Color.clear.frame(width: 4, height: Pill.control)
+    }
+  }
+
+  private func circleButton(
+    icon: String, label: String, tint: Color, fill: Color, action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      Image(systemName: icon)
+        .font(.system(size: 12, weight: .bold))
+        .foregroundStyle(tint)
+        .frame(width: Pill.control, height: Pill.control)
+        .background(fill, in: Circle())
+        .contentShape(Circle())
+    }
+    .buttonStyle(.plain)
+    .help(label)
+    .accessibilityLabel(label)
+  }
+
+  // MARK: - Shared
 
   private var pulses: Bool {
     if case .listening = controller.state { return true }
@@ -68,82 +201,6 @@ struct RecorderOverlay: View {
     case .idle, .cancelled: Theme.inkFaint
     default: Theme.clay
     }
-  }
-
-  // MARK: - Content
-
-  @ViewBuilder private var content: some View {
-    switch controller.state {
-    case .listening:
-      VStack(alignment: .leading, spacing: 5) {
-        waveform
-        Text("Listening — release to insert")
-          .font(.system(size: 11)).foregroundStyle(Theme.inkMuted)
-      }
-    case .transcribing:
-      status("Transcribing…")
-    case .enhancing:
-      status("Polishing…")
-    case .inserting:
-      status("Inserting…")
-    case .success(let text):
-      VStack(alignment: .leading, spacing: 2) {
-        Text("Inserted")
-          .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.moss)
-        Text(text)
-          .font(.system(size: 11)).foregroundStyle(Theme.inkMuted)
-          .lineLimit(1).truncationMode(.tail)
-      }
-    case .failure(let message, let retryable):
-      VStack(alignment: .leading, spacing: 2) {
-        Text(retryable ? "Something went wrong" : "Could not transcribe")
-          .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.live)
-        Text(message)
-          .font(.system(size: 11)).foregroundStyle(Theme.inkMuted).lineLimit(2)
-      }
-    case .cancelled:
-      status("Cancelled")
-    case .idle:
-      VStack(alignment: .leading, spacing: 5) {
-        waveform.opacity(0.3)
-        Text("Ready").font(.system(size: 11)).foregroundStyle(Theme.inkFaint)
-      }
-    }
-  }
-
-  private func status(_ text: String) -> some View {
-    Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink)
-  }
-
-  private var waveform: some View {
-    let bars = geometry.bars(from: controller.meter)
-    return HStack(alignment: .center, spacing: 2.5) {
-      ForEach(Array(bars.enumerated()), id: \.offset) { _, height in
-        Capsule()
-          .fill(Theme.clay.opacity(0.9))
-          .frame(width: 2.5, height: max(3, CGFloat(height) * 24))
-      }
-    }
-    .frame(height: 24, alignment: .center)
-    .animation(
-      Theme.animation(.linear(duration: 0.06), reduceMotion: reduceMotion),
-      value: controller.meter)
-  }
-
-  private var cancelButton: some View {
-    Button {
-      NotificationCenter.default.post(name: .rantCancelDictation, object: nil)
-    } label: {
-      Image(systemName: "xmark")
-        .font(.system(size: 9, weight: .bold))
-        .foregroundStyle(Theme.inkMuted)
-        .frame(width: 20, height: 20)
-        .background(Theme.sunken, in: Circle())
-        .accessibilityHidden(true)
-    }
-    .buttonStyle(.plain)
-    .help("Cancel (Escape)")
-    .accessibilityLabel("Cancel dictation")
   }
 
   private var accessibilityLabel: String {
@@ -163,4 +220,6 @@ struct RecorderOverlay: View {
 extension Notification.Name {
   static let rantCancelDictation = Notification.Name("rant.cancelDictation")
   static let rantToggleDictation = Notification.Name("rant.toggleDictation")
+  static let rantFinishDictation = Notification.Name("rant.finishDictation")
+  static let rantRetryDictation = Notification.Name("rant.retryDictation")
 }

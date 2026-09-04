@@ -23,6 +23,9 @@ final class AppModel: ObservableObject {
   /// Set when the hotkey could not be installed, so the UI can explain rather than
   /// leaving the user pressing a key that does nothing.
   @Published private(set) var hotkeyProblem: String?
+  /// What the *engine* is actually listening for, as opposed to what the settings
+  /// screen says. When these disagree, the key does nothing and nothing explains why.
+  @Published private(set) var listeningFor: TriggerKey?
 
   private var database: Database?
   private(set) var store: SQLiteTranscriptStore?
@@ -34,6 +37,7 @@ final class AppModel: ObservableObject {
   private let microphone = MicrophoneCapture()
   private let log = RantLog("App")
   private var meterTimer: Timer?
+  private var cancellables: Set<AnyCancellable> = []
 
   /// Presenting the overlay is a window operation, so it is owned by the controller
   /// rather than by a SwiftUI scene — a floating recorder must not steal focus, and
@@ -75,8 +79,31 @@ final class AppModel: ObservableObject {
       }
     }
     permissions.startWatching()
+    watchPreferences()
 
     if Self.isDemoingOverlay { startOverlayDemo() }
+    if let directory = Self.gifRenderDirectory { renderOverlayFrames(into: directory) }
+  }
+
+  /// Reinstalls the event tap whenever the trigger or activation mode changes.
+  ///
+  /// This used to be the responsibility of whichever view offered the control, and
+  /// onboarding forgot: you picked Fn on the setup screen, the label updated, and the
+  /// engine carried on listening for Right ⌘ — so the key you had just chosen did
+  /// nothing, with the UI insisting it should. Watching the value rather than trusting
+  /// every call site is the difference between a setting and a suggestion.
+  private func watchPreferences() {
+    preferences.$triggerKey
+      .combineLatest(preferences.$activationMode)
+      .dropFirst()
+      .removeDuplicates { $0 == $1 }
+      .receive(on: RunLoop.main)
+      .sink { [weak self] trigger, mode in
+        guard let self else { return }
+        self.log.info("trigger is now \(trigger.rawValue) (\(mode.rawValue)); reinstalling")
+        self.installHotkeys()
+      }
+      .store(in: &cancellables)
   }
 
   /// Drives the overlay through its states on a loop, with a plausible meter.
@@ -87,6 +114,69 @@ final class AppModel: ObservableObject {
   /// the same animations — only the source of the numbers differs.
   static var isDemoingOverlay: Bool {
     UserDefaults.standard.bool(forKey: "rant-demo-overlay")
+  }
+
+  /// Where to write rendered frames of the recorder, if asked.
+  static var gifRenderDirectory: String? {
+    UserDefaults.standard.string(forKey: "rant-render-overlay")
+  }
+
+  /// Renders the recorder to PNG frames and exits.
+  ///
+  /// Screen-recording the real overlay meant recording whatever else was on the
+  /// display, which is both a privacy problem and a reproducibility one — the result
+  /// depended on the wallpaper and on nobody touching the machine for fifteen
+  /// seconds. `ImageRenderer` draws the *same view* off-screen, so the artefact still
+  /// shows exactly what ships, and the frames are identical on every run.
+  private func renderOverlayFrames(into directory: String) {
+    Task { @MainActor in
+      try? FileManager.default.createDirectory(
+        atPath: directory, withIntermediateDirectories: true)
+
+      let controller = OverlayController()
+      var frame = 0
+
+      @MainActor func write(_ state: DictationState, meter: [Float]) {
+        controller.state = state
+        controller.meter = meter
+        let renderer = ImageRenderer(
+          content: RecorderOverlay(controller: controller)
+            .padding(14)
+            .background(Theme.paper))
+        renderer.scale = 2
+        guard let image = renderer.nsImage,
+          let tiff = image.tiffRepresentation,
+          let bitmap = NSBitmapImageRep(data: tiff),
+          let png = bitmap.representation(using: .png, properties: [:])
+        else { return }
+        let name = String(format: "%03d.png", frame)
+        try? png.write(to: URL(fileURLWithPath: "\(directory)/\(name)"))
+        frame += 1
+      }
+
+      // A speech-shaped meter: a phrase-length swell, a syllable beat and a little
+      // jitter. A single sine reads as a test tone; noise reads as a broken meter.
+      @Sendable func meter(at tick: Int) -> [Float] {
+        (0..<40).map { index in
+          let time = Double(tick - (40 - index)) / 11
+          let phrase = 0.45 + 0.35 * sin(time * 0.55)
+          let syllables = 0.35 + 0.65 * abs(sin(time * 4.3))
+          let jitter = 0.8 + 0.2 * sin(time * 11.7)
+          return Float(max(0.004, phrase * syllables * jitter * 0.13))
+        }
+      }
+
+      for tick in 0..<10 { _ = tick; write(.idle, meter: []) }
+      for tick in 0..<58 { write(.listening, meter: meter(at: tick)) }
+      for _ in 0..<12 { write(.transcribing, meter: []) }
+      for _ in 0..<6 { write(.inserting, meter: []) }
+      for _ in 0..<26 {
+        write(.success("So the migration lands Wednesday, and I will write the notes up after."), meter: [])
+      }
+
+      print("wrote \(frame) frames to \(directory)")
+      NSApp.terminate(nil)
+    }
   }
 
   private func startOverlayDemo() {
@@ -243,7 +333,9 @@ final class AppModel: ObservableObject {
     if engine.start() {
       hotkeys = engine
       hotkeyProblem = nil
+      listeningFor = preferences.triggerKey
     } else {
+      listeningFor = nil
       hotkeys = nil
       hotkeyProblem = permissions.accessibility.isGranted
         ? "Rant could not install its keyboard listener. Try quitting and reopening Rant."

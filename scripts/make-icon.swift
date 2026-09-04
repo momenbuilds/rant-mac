@@ -24,53 +24,74 @@ func drawIcon(size: CGFloat) -> CGImage? {
       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
   else { return nil }
 
-  // macOS icons sit inside a rounded square with a margin; matching the system
-  // proportions is what stops it looking like a sticker in the Dock.
-  let margin = size * 0.10
+  context.setShouldAntialias(true)
+  context.interpolationQuality = .high
+
+  // macOS icons sit inside a rounded square with a margin. The first attempt used a
+  // 10% margin and a 22% corner radius, which reads as a slab: too much plate, not
+  // enough mark. Apple's own proportions are closer to a 6% margin and a corner just
+  // under a quarter of the width, and the mark wants to be considerably larger than
+  // feels right in isolation — at 32 points in a Dock it is the only thing visible.
+  let margin = size * 0.06
   let plate = CGRect(x: margin, y: margin, width: size - margin * 2, height: size - margin * 2)
-  let radius = plate.width * 0.225
+  let radius = plate.width * 0.2337
 
-  // Ink plate, so the clay mark has something to sit on in both light and dark Docks.
-  let path = CGPath(roundedRect: plate, cornerWidth: radius, cornerHeight: radius, transform: nil)
-  context.addPath(path)
-  context.setFillColor(ink)
-  context.fillPath()
+  let plateShape = CGPath(
+    roundedRect: plate, cornerWidth: radius, cornerHeight: radius, transform: nil)
 
-  // A soft warm wash from the bottom, so the plate is not a flat rectangle.
+  // A clay plate rather than an ink one. The mark was clay-on-near-black, which went
+  // muddy at Dock size because two dark browns sat next to each other; the contrast
+  // now comes from light strokes on a saturated ground, which survives being 32
+  // points tall on any wallpaper.
   context.saveGState()
-  context.addPath(path)
+  context.addPath(plateShape)
   context.clip()
   if let gradient = CGGradient(
     colorsSpace: CGColorSpaceCreateDeviceRGB(),
     colors: [
-      CGColor(red: 0.761, green: 0.333, blue: 0.227, alpha: 0.30),
-      CGColor(red: 0.118, green: 0.106, blue: 0.141, alpha: 0),
+      CGColor(red: 0.847, green: 0.404, blue: 0.259, alpha: 1),   // warm top
+      CGColor(red: 0.639, green: 0.239, blue: 0.161, alpha: 1),   // deeper base
     ] as CFArray,
     locations: [0, 1])
   {
     context.drawLinearGradient(
-      gradient, start: CGPoint(x: plate.midX, y: plate.minY),
-      end: CGPoint(x: plate.midX, y: plate.maxY), options: [])
+      gradient, start: CGPoint(x: plate.midX, y: plate.maxY),
+      end: CGPoint(x: plate.midX, y: plate.minY), options: [])
   }
   context.restoreGState()
 
-  // The mark: three rising strokes, the same shape the sidebar draws.
-  let scales: [CGFloat] = [0.42, 0.76, 0.58]
-  let strokeWidth = plate.width * 0.115
-  let gap = plate.width * 0.085
+  // A hairline highlight along the top edge, which is what stops a flat fill looking
+  // like a placeholder.
+  context.saveGState()
+  context.addPath(plateShape)
+  context.clip()
+  context.setStrokeColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.22))
+  context.setLineWidth(size * 0.012)
+  context.addPath(plateShape)
+  context.strokePath()
+  context.restoreGState()
+
+  // The mark: three strokes, low–high–mid. Thinner and further apart than before —
+  // the earlier version had them almost touching, which read as a solid block rather
+  // than as separate strokes.
+  let scales: [CGFloat] = [0.30, 0.56, 0.42]
+  let strokeWidth = plate.width * 0.088
+  let gap = plate.width * 0.098
   let totalWidth = strokeWidth * 3 + gap * 2
-  let baseline = plate.minY + plate.height * 0.24
+  // Optically centred: the group is centred on the plate, then nudged so the visual
+  // weight — which sits low, because the strokes rise from a common baseline — lands
+  // on the middle rather than below it.
+  let baseline = plate.minY + plate.height * 0.275
   var x = plate.midX - totalWidth / 2
 
-  for (index, scale) in scales.enumerated() {
+  for scale in scales {
     let height = plate.height * scale
     let bar = CGRect(x: x, y: baseline, width: strokeWidth, height: height)
-    let barPath = CGPath(
-      roundedRect: bar, cornerWidth: strokeWidth / 2, cornerHeight: strokeWidth / 2,
-      transform: nil)
-    context.addPath(barPath)
-    // The tallest stroke is the brightest: the eye should land on the middle.
-    context.setFillColor(index == 1 ? clay : clayDeep)
+    context.addPath(
+      CGPath(
+        roundedRect: bar, cornerWidth: strokeWidth / 2, cornerHeight: strokeWidth / 2,
+        transform: nil))
+    context.setFillColor(CGColor(red: 1, green: 0.976, blue: 0.965, alpha: 1))
     context.fillPath()
     x += strokeWidth + gap
   }
