@@ -15,35 +15,35 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
   - verify: `test -f LICENSE && test -d docs && git rev-parse --git-dir`
   - notes: MIT. Working name Rant. Repo `rant-mac`.
 
-- [~] RANT-002 — Task tracking system (TASKS.md, PROGRESS.md, DECISIONS.md, CLAUDE.md, status.sh)
+- [x] RANT-002 — Task tracking system (TASKS.md, PROGRESS.md, DECISIONS.md, CLAUDE.md, status.sh)
   - depends: RANT-001
   - acceptance: all tracking files exist and scripts/status.sh runs
   - verify: `bash scripts/status.sh`
 
-- [ ] RANT-003 — Competitor audit
+- [x] RANT-003 — Competitor audit
   - depends: RANT-001
   - acceptance: docs/COMPETITOR_AUDIT.md with a full capability matrix; every capability
     marked MATCH / BEAT / INTENTIONALLY_SKIP(reason)
   - verify: `bash scripts/check-audit.sh`
   - notes: Wispr Flow, VoiceInk (GPLv3 — inspect only), Blurt (MIT), Superwhisper, others.
 
-- [ ] RANT-004 — Architecture + decision records
+- [x] RANT-004 — Architecture + decision records
   - depends: RANT-003
   - acceptance: docs/ARCHITECTURE.md, docs/DECISIONS.md, docs/DATA_MODEL.md,
     docs/NETWORK_BEHAVIOR.md, docs/THREAT_MODEL.md
   - verify: `ls docs/ARCHITECTURE.md docs/DECISIONS.md docs/DATA_MODEL.md docs/NETWORK_BEHAVIOR.md docs/THREAT_MODEL.md`
 
-- [ ] RANT-005 — SwiftPM package scaffolding (RantCore + tests)
+- [x] RANT-005 — SwiftPM package scaffolding (RantCore + tests)
   - depends: RANT-004
   - acceptance: `swift build` succeeds; `swift test` runs
   - verify: `swift build && swift test`
 
-- [ ] RANT-006 — Logging + redaction subsystem
+- [x] RANT-006 — Logging + redaction subsystem
   - depends: RANT-005
   - acceptance: os.Logger wrapper; transcript/context bodies never logged at default level
   - verify: `swift test --filter RedactionTests`
 
-- [ ] RANT-007 — Keychain secret storage
+- [~] RANT-007 — Keychain secret storage
   - depends: RANT-005
   - acceptance: store/read/delete API keys in Keychain; never UserDefaults; no logging
   - verify: `swift test --filter SecretStoreTests`
@@ -60,7 +60,7 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
 
 ## Phase B — Killer core loop  (must work end to end)
 
-- [ ] RANT-010 — Global hotkey engine + state machine
+- [x] RANT-010 — Global hotkey engine + state machine
   - depends: RANT-009
   - acceptance: push-to-talk, tap-toggle, double-tap hands-free, cancel, lone-modifier
     handling that does not break normal shortcuts
@@ -117,7 +117,7 @@ Run the task's `verify:` command before marking `[x]`, and record evidence.
 
 - [ ] RANT-020 — Context engine (app/window/URL/field/selection/before-after text)
   - verify: `swift test --filter ContextTests`
-- [ ] RANT-021 — Cleanup levels (None/Light/Medium/High) + spoken punctuation + backtracking
+- [x] RANT-021 — Cleanup levels (None/Light/Medium/High) + spoken punctuation + backtracking
   - verify: `swift test --filter CleanupTests`
 - [ ] RANT-022 — Enhancement providers (Apple FM, Ollama/OpenAI-compatible, none)
   - verify: `swift test --filter EnhancementTests`
