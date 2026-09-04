@@ -27,7 +27,19 @@ public struct RantLog: Sendable {
   /// rule the system log follows.
   nonisolated(unsafe) public static var fileURL: URL? = defaultFileURL
 
+  /// Nil under XCTest.
+  ///
+  /// The test suite runs thousands of operations and, without this, wrote every one of
+  /// them into the log the *user's* installed app keeps — so a real diagnostic file
+  /// filled up with output from a test run on the same machine and stopped being
+  /// worth reading.
+  private static var isRunningTests: Bool {
+    NSClassFromString("XCTestCase") != nil
+      || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+  }
+
   private static var defaultFileURL: URL? {
+    guard !isRunningTests else { return nil }
     let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
     guard let directory = base.first?.appendingPathComponent("Rant", isDirectory: true) else {
       return nil
