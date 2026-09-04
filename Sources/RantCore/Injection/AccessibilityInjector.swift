@@ -84,7 +84,7 @@ public actor AccessibilityInjector: TextInjector {
           == .success,
         let element = focused, CFGetTypeID(element) == AXUIElementGetTypeID()
       else { return false }
-      let target = unsafeBitCast(element, to: AXUIElement.self)
+      let target = unsafeDowncast(element, to: AXUIElement.self)
 
       // Belt and braces: re-check the role here as well as in the policy, because
       // focus can move between context capture and injection.
