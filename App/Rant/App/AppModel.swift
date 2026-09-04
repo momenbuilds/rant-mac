@@ -23,6 +23,8 @@ final class AppModel: ObservableObject {
   @Published var destination: String = "home"
   /// Built lazily once the database is open; owns the running meeting.
   @Published private(set) var meetingController: MeetingController?
+  /// Owns the transform panel and its hotkey.
+  @Published private(set) var transformController: TransformController?
   @Published private(set) var partialText: String = ""
   @Published private(set) var recentTranscripts: [Transcript] = []
   @Published private(set) var lastError: String?
@@ -54,6 +56,7 @@ final class AppModel: ObservableObject {
   private var cancellables: Set<AnyCancellable> = []
   /// The permission-free fallback, used while Accessibility is missing.
   private var fallbackHotkey: CarbonHotkey?
+  private var transformHotkey: CarbonHotkey?
 
   /// Presenting the overlay is a window operation, so it is owned by the controller
   /// rather than by a SwiftUI scene — a floating recorder must not steal focus, and
@@ -80,6 +83,7 @@ final class AppModel: ObservableObject {
     openDatabase()
     buildSession()
     installHotkeys()
+    installTransformHotkey()
     refreshHistory()
     startMeterUpdates()
     // Before anything else can add to it: audio that outlived the policy while Rant
@@ -454,6 +458,43 @@ final class AppModel: ObservableObject {
         ? "Rant could not install its keyboard listener. Try quitting and reopening Rant."
         : "Rant needs Accessibility permission before your dictation key can work anywhere."
     }
+  }
+
+  /// The transform key. Registered once, for the life of the app.
+  ///
+  /// Carbon rather than the event tap, so transforms work without Accessibility being
+  /// granted — reading the selection needs it, and the panel says so when it is
+  /// missing, which is more useful than a key that does nothing at all.
+  private func installTransformHotkey() {
+    guard transformHotkey == nil else { return }
+    let hotkey = CarbonHotkey(.optionShiftT) { [weak self] in
+      Task { @MainActor [weak self] in self?.beginTransform() }
+    }
+    if hotkey.register() {
+      transformHotkey = hotkey
+      log.info("transform key on \(CarbonHotkey.Combination.optionShiftT.displayName)")
+    } else {
+      log.warning("could not register the transform key; another app has it")
+    }
+  }
+
+  /// Built lazily so it shares the enhancer and injector the dictation pipeline uses.
+  func makeTransformControllerIfNeeded() -> TransformController? {
+    if let transformController { return transformController }
+    let controller = TransformController(
+      engine: TransformEngine(
+        enhancer: makeEnhancementProvider(),
+        injector: AccessibilityInjector()),
+      context: AccessibilityContextProvider(),
+      contextSettings: { [weak self] in
+        self?.preferences.contextSettings ?? .default
+      })
+    transformController = controller
+    return controller
+  }
+
+  func beginTransform() {
+    makeTransformControllerIfNeeded()?.begin()
   }
 
   /// Claims a plain shortcut so Rant does something useful before any permission is

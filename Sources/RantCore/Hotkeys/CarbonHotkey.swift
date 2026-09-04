@@ -41,6 +41,20 @@ public final class CarbonHotkey: @unchecked Sendable {
     public static let controlOptionD = Combination(
       keyCode: UInt32(kVK_ANSI_D), modifiers: UInt32(controlKey | optionKey),
       displayName: "⌃⌥D")
+
+    /// ⌥⇧T — transform the selection. A combination rather than a lone modifier,
+    /// because unlike dictation this acts on text that is already selected and a
+    /// misfire would rewrite it.
+    public static let optionShiftT = Combination(
+      keyCode: UInt32(kVK_ANSI_T), modifiers: UInt32(optionKey | shiftKey),
+      displayName: "⌥⇧T")
+
+    /// ⌥⇧C — command mode. Distinct from the dictation key, as the spec requires:
+    /// "make this shorter" must be an instruction, not something typed into the
+    /// document.
+    public static let optionShiftC = Combination(
+      keyCode: UInt32(kVK_ANSI_C), modifiers: UInt32(optionKey | shiftKey),
+      displayName: "⌥⇧C")
   }
 
   private var reference: EventHotKeyRef?
